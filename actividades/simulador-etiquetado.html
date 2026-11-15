@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de etiquetado · Cableado estructurado</title>
+<style>
+:root{
+  --mag:#D30DA8; --mag-soft:#FBE3F4; --ink:#222733; --gray:#5F6675;
+  --light:#F4F5F7; --line:#D9DCE3; --dark:#161A23; --slate:#2E3444;
+  --green:#1E7F4F; --green-soft:#E3F4EC; --red:#B3261E; --red-soft:#FCE8E6;
+  --warn:#B7791F; --warn-soft:#FFF4DC; --teal:#0E8C8C; --teal-soft:#DDF1F1;
+  --font:Arial,Helvetica,sans-serif; --mono:"Courier New",Courier,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);color:var(--ink);background:#fff;font-size:16px;line-height:1.55}
+header.top{background:var(--dark);color:#fff;border-bottom:4px solid var(--mag);display:flex;align-items:center;gap:1rem;padding:.55rem 1.2rem}
+header.top img{width:40px;height:40px;border-radius:4px}
+header.top .t{font-weight:bold;font-size:1rem;line-height:1.2}
+header.top .s{color:#AEB4C2;font-size:.78rem}
+main{max-width:78rem;margin:0 auto;padding:1.5rem 1.2rem 4rem}
+h1{font-size:1.9rem;line-height:1.2;margin:.2rem 0 .3rem}
+h2{font-size:1.45rem;margin:2rem 0 .6rem;padding-top:.6rem;border-top:3px solid var(--mag-soft)}
+h2 .n{display:inline-block;background:var(--mag);color:#fff;border-radius:50%;width:2rem;height:2rem;line-height:2rem;text-align:center;margin-right:.5rem;font-size:1.05rem}
+p.lead{color:var(--gray);margin:0 0 1rem}
+.caja{border-left:6px solid var(--teal);background:var(--teal-soft);border-radius:8px;padding:.7rem 1rem;margin:1rem 0}
+.caja.aviso{border-color:var(--warn);background:var(--warn-soft)}
+.caja p{margin:.3rem 0}
+.caja ul{margin:.3rem 0 .3rem 1.2rem;padding:0}
+code,.mono{font-family:var(--mono)}
+.ctrl{display:flex;flex-wrap:wrap;gap:.6rem;margin:.8rem 0}
+button.b{font:inherit;border:2px solid var(--mag);background:#fff;color:var(--mag);border-radius:8px;padding:.45rem .9rem;cursor:pointer;font-weight:bold}
+button.b:hover{background:var(--mag-soft)}
+button.b.pri{background:var(--mag);color:#fff}
+button.b.pri:hover{background:#B00C8D}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.stage{position:relative;min-width:1000px;container-type:inline-size;user-select:none}
+.stage svg{display:block;width:100%;height:auto}
+.stage input{position:absolute;font:inherit;font-family:var(--mono);font-size:1.15cqw;font-weight:bold;text-align:center;text-transform:uppercase;
+  padding:0;border:1.5px solid #8A91A1;border-radius:4px;background:#fff;color:var(--ink);outline:none;user-select:text}
+.stage input::placeholder{color:#B5BAC6;font-weight:normal;text-transform:none}
+.stage input:focus{border-color:var(--mag);box-shadow:0 0 0 3px var(--mag-soft)}
+.stage input.ok{border-color:var(--green);background:var(--green-soft)}
+.stage input.ko{border-color:var(--red);background:var(--red-soft)}
+.stage input.sol{border-color:var(--teal);background:var(--teal-soft);color:#0A5757}
+.stage input.pan{text-transform:uppercase}
+.cable{fill:none;stroke-width:3;stroke-linecap:round;transition:opacity .15s,stroke-width .15s}
+.has-hl .cable{opacity:.15}
+.has-hl .cable.hl{opacity:1;stroke-width:6}
+.has-hl .pt[data-c],.has-hl .sk{opacity:.3}
+.has-hl .pt.hl,.has-hl .sk.hl{opacity:1;stroke:#111;stroke-width:3.5}
+.t-p{font-size:10px;font-weight:bold;fill:#5F6675;font-family:Arial,Helvetica,sans-serif}
+.t-s{font-size:12px;fill:#5F6675;font-family:Arial,Helvetica,sans-serif}
+.t-b{font-size:14px;font-weight:bold;fill:#222733;font-family:Arial,Helvetica,sans-serif}
+.t-n{font-size:13px;font-weight:bold;fill:#5F6675;font-family:Arial,Helvetica,sans-serif}
+#fb{margin-top:1rem}
+#fb .res{font-weight:bold;font-size:1.1rem;padding:.7rem 1rem;border-radius:8px}
+#fb .res.bien{background:var(--green-soft);color:var(--green);border-left:6px solid var(--green)}
+#fb .res.mal{background:var(--warn-soft);color:#7A4F0B;border-left:6px solid var(--warn)}
+#fb ul{margin:.6rem 0;padding-left:1.3rem}
+#fb li{margin:.35rem 0}
+#fb h3{margin:1rem 0 .2rem;font-size:1rem;color:var(--gray);text-transform:uppercase;letter-spacing:.04em}
+details{margin:1rem 0;border:1px solid var(--line);border-radius:8px;padding:.5rem 1rem;background:var(--light)}
+summary{cursor:pointer;font-weight:bold}
+details ul{margin:.5rem 0 .3rem;padding-left:1.2rem}
+table.reglas{border-collapse:collapse;width:100%;font-size:.95rem}
+table.reglas th{background:var(--slate);color:#fff;text-align:left;padding:.4rem .7rem}
+table.reglas td{padding:.4rem .7rem;border-bottom:1px solid var(--line)}
+table.reglas tr:nth-child(even) td{background:var(--light)}
+.pie{margin-top:3rem;color:var(--gray);font-size:.8rem;border-top:1px solid var(--line);padding-top:.8rem}
+.ctrl.esq{align-items:center;gap:1.2rem;margin:.6rem 0}
+.ctrl.esq label{cursor:pointer}
+.pt[data-c],.sk,.cable-hit{cursor:pointer}
+#reglas{margin-top:.5rem}
+.stage button.entrar{position:absolute;font:inherit;font-size:1.05cqw;font-weight:bold;border:2px solid var(--mag);background:#fff;color:var(--mag);border-radius:6px;cursor:pointer;padding:0}
+.stage button.entrar:hover{background:var(--mag-soft)}
+.stage.s2 input{font-size:.95cqw}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:.5rem;margin:1.2rem 0 0;border-bottom:3px solid var(--mag)}
+.tabs button{font:inherit;font-weight:bold;border:2px solid var(--line);border-bottom:none;background:var(--light);color:var(--gray);border-radius:10px 10px 0 0;padding:.6rem 1.1rem;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--mag);border-color:var(--mag);color:#fff}
+.tabs button:hover{background:var(--mag-soft);color:var(--mag)}
+.tabs button[aria-selected="true"]:hover{background:var(--mag);color:#fff}
+select{font:inherit;padding:.35rem .6rem;border:2px solid var(--mag);border-radius:8px;background:#fff;color:var(--ink)}
+details.semilla{margin:.6rem 0}
+details.semilla p{margin:.4rem 0}
+details.semilla button.b{padding:.2rem .6rem;font-size:.9rem}
+input.insem{font:inherit;font-family:var(--mono);width:9rem;padding:.25rem .5rem;border:2px solid var(--line);border-radius:6px}
+</style>
+</head>
+<body>
+<header class="top">
+  <img src="data:image/png;base64,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" alt="Logotipo del IES Almunia">
+  <div><div class="t">Simulador de etiquetado</div><div class="s">1º SMR · REDLO · Unidad 4 · Cableado estructurado</div></div>
+</header>
+<main>
+<h1>Simulador de etiquetado</h1>
+<p class="lead">Practica los esquemas de etiquetado de la unidad sobre instalaciones sencillas. Escribe las etiquetas donde irían en la realidad y comprueba si son correctas.</p>
+
+<div class="tabs" role="tablist" aria-label="Apartados del simulador">
+  <button type="button" role="tab" id="tab1" aria-controls="a1" aria-selected="true">1 · Una red sencilla</button>
+  <button type="button" role="tab" id="tab2" aria-controls="a2" aria-selected="false">2 · Armario principal y de distribución</button>
+</div>
+
+<section id="a1" role="tabpanel" aria-labelledby="tab1">
+<h2><span class="n">1</span>Una red sencilla: un armario y cableado horizontal</h2>
+
+<p>Tienes un armario con entre dos y cuatro paneles de parcheo de 24 puertos. Los cables salen del armario por detrás, bajan y acaban en las tomas de varias rosetas. Algunos pasan por un registro. <strong>Cada cable es de un color</strong>, igual que su puerto en el panel y su toma: así sabes dónde acaba. Tu trabajo es <strong>etiquetar todo</strong> con el esquema que elijas: las letras del ejemplo A del apartado 5 o las unidades de la variante del anexo.</p>
+
+<div class="ctrl esq">
+  <label for="selEsq1"><strong>Esquema de etiquetado:</strong></label>
+  <select id="selEsq1"><option value="letras" selected>Paneles con letras (A01)</option><option value="unidades">Paneles con unidades (09:04)</option></select>
+</div>
+<details id="regDet">
+<summary>Ver el esquema que debes aplicar (consúltalo solo si lo necesitas)</summary>
+<div id="reglas"></div>
+</details>
+
+<div class="ctrl">
+  <button class="b pri" id="bComprobar" type="button">Comprobar</button>
+  <button class="b" id="bSolucion" type="button">Mostrar solución</button>
+  <button class="b" id="bBorrar" type="button">Borrar mis etiquetas</button>
+  <button class="b" id="bNuevo" type="button">Nuevo ejercicio</button>
+</div>
+<details class="semilla">
+<summary>Compartir este ejercicio (semilla)</summary>
+<p>La semilla de este ejercicio es <strong class="mono" id="sem1"></strong> <button class="b" id="bCopiar1" type="button">Copiar semilla</button> <button class="b" id="bEnlace1" type="button">Copiar enlace</button> Pásasela a otra persona (o el enlace, que abre este apartado con este ejercicio): si la escribe aquí abajo, verá exactamente el mismo ejercicio.</p>
+<p><label for="inSem1">Cargar una semilla:</label> <input type="text" inputmode="numeric" id="inSem1" class="insem" autocomplete="off" placeholder="p. ej. 4821"> <button class="b" id="bCargar1" type="button">Cargar</button> <span id="msgSem1" role="status"></span></p>
+</details>
+
+<div class="scroll"><div class="stage" id="stage"></div></div>
+<p class="t-s" style="font-size:.8rem;color:var(--gray);margin:.4rem 0 0">Dibujo esquemático: los cables van por detrás del armario y llegan a los puertos desde atrás. Las unidades (U) se numeran de abajo arriba. Pasa el ratón por una etiqueta, un puerto, una toma o un cable (o púlsalo para fijarlo) para resaltar el cable completo.</p>
+
+<details>
+<summary>Conexiones en texto (alternativa al dibujo; incluye los números de puerto)</summary>
+<ul id="texto"></ul>
+</details>
+
+<div id="fb" aria-live="polite"></div>
+</section>
+
+<section id="a2" role="tabpanel" aria-labelledby="tab2" hidden>
+<h2><span class="n">2</span>Una red con armario principal y armarios de distribución</h2>
+
+<p>Ahora la instalación tiene un <strong>armario principal</strong> y entre tres y cinco <strong>armarios de distribución</strong>, repartidos por las plantas del edificio. Del principal sale <strong>cableado vertical</strong> hacia cada armario de distribución (uno o dos cables por armario), y algunos cables pasan por un registro. Cada cable tiene un color, igual que su puerto en los dos paneles. En la vista general etiquetas <strong>los armarios, sus paneles y el cableado vertical</strong> (los cables, y los puertos del armario principal). Para etiquetar los puertos del cableado vertical en cada armario de distribución y su <strong>cableado horizontal</strong> tienes que <strong>entrar en él</strong> con el botón «Entrar».</p>
+
+<div class="ctrl esq">
+  <label for="selEsq2"><strong>Esquema de etiquetado del cableado vertical:</strong></label>
+  <select id="selEsq2">
+    <option value="f1" selected>Forma 1: el enlace (MA/1A.1)</option>
+    <option value="f2l">Forma 2: los puertos, paneles con letras (MA-A04/1A-B24)</option>
+    <option value="f2u">Forma 2: los puertos, paneles con unidades (MA-34:04/1A-06:24)</option>
+  </select>
+</div>
+<details>
+<summary>Ver el esquema que debes aplicar (consúltalo solo si lo necesitas)</summary>
+<div id="reglas2"></div>
+</details>
+
+<div class="ctrl">
+  <button class="b pri" id="bComprobar2" type="button">Comprobar</button>
+  <button class="b" id="bSolucion2" type="button">Mostrar solución</button>
+  <button class="b" id="bBorrar2" type="button">Borrar mis etiquetas</button>
+  <button class="b" id="bNuevo2" type="button">Nuevo ejercicio</button>
+</div>
+<details class="semilla">
+<summary>Compartir este ejercicio (semilla)</summary>
+<p>La semilla de este ejercicio es <strong class="mono" id="sem2"></strong> <button class="b" id="bCopiar2" type="button">Copiar semilla</button> <button class="b" id="bEnlace2" type="button">Copiar enlace</button> Pásasela a otra persona: si la escribe aquí abajo, verá exactamente el mismo ejercicio.</p>
+<p><label for="inSem2">Cargar una semilla:</label> <input type="text" inputmode="numeric" id="inSem2" class="insem" autocomplete="off" placeholder="p. ej. 4821"> <button class="b" id="bCargar2" type="button">Cargar</button> <span id="msgSem2" role="status"></span></p>
+</details>
+
+<div id="vGeneral">
+  <div class="scroll"><div class="stage s2" id="stg2a"></div></div>
+  <p class="t-s" style="font-size:.8rem;color:var(--gray);margin:.4rem 0 0">Vista general esquemática. Los cables van por detrás de los armarios. Pasa el ratón por una etiqueta, un puerto o un cable (o púlsalo para fijarlo) para resaltarlo. En cada armario, el botón «Entrar» abre su interior.</p>
+</div>
+<div id="vArmario" hidden>
+  <div class="ctrl" style="align-items:center">
+    <button class="b" id="bVolver" type="button">← Volver a la vista general</button>
+    <strong id="tArm"></strong>
+  </div>
+  <div class="scroll"><div class="stage s2" id="stg2b"></div></div>
+</div>
+
+<details>
+<summary>Conexiones en texto (alternativa al dibujo; incluye los números de puerto)</summary>
+<ul id="texto2"></ul>
+</details>
+
+<div id="fb2" aria-live="polite"></div>
+</section>
+
+<p class="pie">Material de uso privado del alumnado del IES Almunia de Jerez de la Frontera.</p>
+</main>
+
+<script>
+(function(){
+'use strict';
+var W=1200, H=0;
+var COLORES=['#D30DA8','#0E8C8C','#B7791F','#3B5BDB','#2F9E44','#E8590C','#7048E8','#C2255C'];
+var NCOL=['magenta','turquesa','ocre','azul','verde','naranja','violeta','rosa oscuro'];
+var U=44, ITEM_TOP=48, CAB_X=50, CAB_W=1100;
+var NU=9, YC=0, YR=0;
+var PX0=340, PPASO=30.5, PW=25;
+var estado=null, campos=[], esquema='letras';
+var hover=null, foco=null, fijo=null;
+
+/* ---------- generador ---------- */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function baraja(rnd,arr){
+  for(var i=arr.length-1;i>0;i--){var j=Math.floor(rnd()*(i+1));var t=arr[i];arr[i]=arr[j];arr[j]=t;}
+  return arr;
+}
+function subconjunto(rnd,k){
+  var p=[];for(var i=1;i<=24;i++)p.push(i);
+  return baraja(rnd,p).slice(0,k).sort(function(a,b){return a-b;});
+}
+function pad(n){return (n<10?'0':'')+n;}
+function generar(semilla){
+  var rnd=mulberry(semilla);
+  var nb=2+Math.floor(rnd()*3);
+  var ks=[];
+  for(var i=0;i<nb;i++) ks.push(2+Math.floor(rnd()*3));
+  var suma=function(){return ks.reduce(function(a,b){return a+b;},0);};
+  while(suma()>9){ks[ks.indexOf(Math.max.apply(null,ks))]--;}
+  while(suma()<6){ks[ks.indexOf(Math.min.apply(null,ks))]++;}
+  var nu=3*nb+3, unidades=[], cables=[];
+  ks.forEach(function(k,pi){
+    var up=nu-3*pi;
+    unidades.push({u:up,t:'panel',p:pi},{u:up-1,t:'pasa'},{u:up-2,t:'switch'});
+    subconjunto(rnd,k).forEach(function(pt){cables.push({panel:pi,puerto:pt,unidad:up});});
+  });
+  unidades.push({u:3,t:'libre'},{u:2,t:'libre'},{u:1,t:'regleta'});
+  baraja(rnd,cables);
+  var n=cables.length, grupos, ok=false;
+  for(var t=0;t<80&&!ok;t++){
+    grupos=[];var resto=n;
+    while(resto>0){var s=(resto>1&&rnd()<.7)?2:1;grupos.push(s);resto-=s;}
+    var tot=grupos.reduce(function(a,s){return a+(s===1?110:200);},0);
+    ok=(tot+(grupos.length+1)*24<=CAB_W);
+  }
+  if(!ok){grupos=[];for(var q=0;q<n;q+=2)grupos.push(Math.min(2,n-q));}
+  var regs=[], i2=Math.floor(rnd()*(n-1));
+  regs.push([i2,i2+1]);
+  var libres=[];
+  for(var j=0;j<n;j++){ if(j<=i2-2||j>=i2+3) libres.push(j); }
+  if(libres.length) regs.push([libres[Math.floor(rnd()*libres.length)]]);
+  regs.sort(function(a,b){return a[0]-b[0];});
+  return {nb:nb,nu:nu,unidades:unidades,cables:cables,grupos:grupos,regs:regs};
+}
+
+/* ---------- identificadores según el esquema ---------- */
+function idPanel(pi){return esquema==='letras'?'ABCD'.charAt(pi):pad(estado.unidadesPanel[pi]);}
+function idCable(c){return esquema==='letras'?('ABCD'.charAt(c.panel)+pad(c.puerto)):(pad(c.unidad)+':'+pad(c.puerto));}
+function esperado(o){return o.tipo==='panel'?idPanel(o.panel):idCable(estado.cables[o.cable]);}
+
+/* ---------- geometría ---------- */
+function yUnidad(u){return ITEM_TOP+(NU-u)*U;}
+function xPuerto(p){return PX0+PPASO*(p-1);}
+function posY(c,y){
+  var y0=YC-12,y3=YR+4,c1=y0+0.45*(y3-y0),c2=y0+0.55*(y3-y0);
+  var lo=0,hi=1;
+  for(var i=0;i<30;i++){var m=(lo+hi)/2,u=1-m;var yy=u*u*u*y0+3*u*u*m*c1+3*u*m*m*c2+m*m*m*y3;if(yy<y)lo=m;else hi=m;}
+  var t=(lo+hi)/2,v=1-t;
+  return c.xe*(v*v*v+3*v*v*t)+c.xs*(3*v*t*t+t*t*t);
+}
+
+/* ---------- construcción ---------- */
+function montar(semilla){
+  mostrarSem1(semilla);
+  var g=generar(semilla), cables=g.cables, n=cables.length;
+  NU=g.nu; YC=ITEM_TOP+NU*U+20; YR=YC+270; H=YR+96+24;
+  cables.forEach(function(c,i){c.xe=n===1?600:150+i*(900/(n-1));});
+  var anchos=g.grupos.map(function(s){return s===1?110:200;});
+  var tot=anchos.reduce(function(a,b){return a+b;},0);
+  var hueco=(CAB_W-tot)/(g.grupos.length+1);
+  var x=CAB_X+hueco, k=0, rosetas=[];
+  g.grupos.forEach(function(s,ri){
+    var r={n:ri+1,x:x,w:anchos[ri],sockets:[]};
+    for(var i=0;i<s;i++){
+      var c=cables[k++];
+      c.roseta=ri+1;c.pos=i;c.ns=s;
+      c.xs=s===1?x+anchos[ri]/2:x+anchos[ri]/2+(i===0?-50:50);
+      r.sockets.push(c);
+    }
+    rosetas.push(r);
+    x+=anchos[ri]+hueco;
+  });
+  var YM=YC+(YR-YC)/2;
+  var regs=g.regs.map(function(lst,ri){
+    var xs=lst.map(function(i){return posY(cables[i],YM);});
+    lst.forEach(function(i){cables[i].reg=ri+1;});
+    return {n:ri+1,cables:lst,x1:Math.min.apply(null,xs)-42,x2:Math.max.apply(null,xs)+42};
+  });
+  var up=[];g.unidades.forEach(function(it){if(it.t==='panel')up[it.p]=it.u;});
+  estado={cables:cables,rosetas:rosetas,regs:regs,ym:YM,unidades:g.unidades,unidadesPanel:up};
+  hover=foco=fijo=null;
+  dibujar();
+}
+
+function col(i){return COLORES[i%COLORES.length];}
+function dibujar(){
+  var st=document.getElementById('stage'), cables=estado.cables;
+  var s='<svg id="svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Armario de '+NU+' unidades con paneles de parcheo de 24 puertos. Los cables salen por detrás del armario y llegan a las rosetas">';
+  cables.forEach(function(c,i){
+    var y0=YC-12,y3=YR+4;
+    var d='M'+c.xe+','+y0+' C'+c.xe+','+(y0+0.45*(y3-y0))+' '+c.xs+','+(y0+0.55*(y3-y0))+' '+c.xs+','+y3;
+    s+='<path class="cable" data-c="'+i+'" stroke="'+col(i)+'" d="'+d+'"/>';
+    s+='<path class="cable-hit" data-c="'+i+'" d="'+d+'" fill="none" stroke="transparent" stroke-width="18" pointer-events="stroke"/>';
+  });
+  s+='<rect x="'+CAB_X+'" y="20" width="'+CAB_W+'" height="'+(YC-20)+'" rx="10" fill="#F4F5F7" stroke="#9AA1B0" stroke-width="2.5"/>';
+  s+='<text x="'+(CAB_X+16)+'" y="40" class="t-b">Armario de '+NU+' U (la unidad 1 es la de abajo)</text>';
+  s+='<rect x="'+(CAB_X+2)+'" y="'+ITEM_TOP+'" width="54" height="'+(NU*U)+'" fill="#E1E4EA"/>';
+  s+='<rect x="'+(CAB_X+CAB_W-56)+'" y="'+ITEM_TOP+'" width="54" height="'+(NU*U)+'" fill="#E1E4EA"/>';
+  for(var u=NU;u>=1;u--){
+    var yt=yUnidad(u);
+    s+='<text x="'+(CAB_X+28)+'" y="'+(yt+U/2+5)+'" text-anchor="middle" class="t-n">U'+u+'</text>';
+    s+='<text x="'+(CAB_X+CAB_W-28)+'" y="'+(yt+U/2+5)+'" text-anchor="middle" class="t-n">U'+u+'</text>';
+  }
+  var usados={};
+  cables.forEach(function(c,i){usados[c.panel+'-'+c.puerto]=i;});
+  estado.unidades.forEach(function(it){
+    var yt=yUnidad(it.u), x0=CAB_X+62, w=CAB_W-124;
+    if(it.t==='panel'){
+      s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#fff" stroke="#6B7384" stroke-width="2"/>';
+      s+='<text x="'+(x0+12)+'" y="'+(yt+U/2+5)+'" class="t-b">Panel de parcheo</text>';
+      for(var p=1;p<=24;p++){
+        var px=xPuerto(p), ci=usados[it.p+'-'+p];
+        s+='<text x="'+(px+PW/2)+'" y="'+(yt+14)+'" text-anchor="middle" class="t-p">'+p+'</text>';
+        s+='<rect class="pt" x="'+px+'" y="'+(yt+17)+'" width="'+PW+'" height="22" rx="3" fill="'+(ci!==undefined?col(ci):'#D9DCE3')+'" stroke="#4A5160" stroke-width="1.5"'+(ci!==undefined?' data-c="'+ci+'"':'')+'/>';
+      }
+    }else if(it.t==='pasa'){
+      s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#E9ECF1" stroke="#9AA1B0" stroke-width="1.5"/>';
+      s+='<text x="'+(x0+12)+'" y="'+(yt+U/2+5)+'" class="t-b">Pasacables</text>';
+      for(var q=0;q<24;q++) s+='<circle cx="'+(PX0+q*PPASO+PW/2)+'" cy="'+(yt+U/2)+'" r="8" fill="none" stroke="#8A91A1" stroke-width="2"/>';
+    }else if(it.t==='switch'){
+      s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#3A4152" stroke="#232834" stroke-width="1.5"/>';
+      s+='<text x="'+(x0+12)+'" y="'+(yt+U/2+5)+'" class="t-b" style="fill:#fff">Switch</text>';
+      for(var r=1;r<=24;r++){
+        var sx=xPuerto(r);
+        s+='<text x="'+(sx+PW/2)+'" y="'+(yt+13)+'" text-anchor="middle" class="t-p" style="fill:#C9CEDA">'+r+'</text>';
+        s+='<rect x="'+sx+'" y="'+(yt+16)+'" width="'+PW+'" height="15" rx="2" fill="#8A91A1" stroke="#1E222B" stroke-width="1"/>';
+        s+='<circle cx="'+(sx+PW/2)+'" cy="'+(yt+36)+'" r="2.6" fill="#2A303D" stroke="#6B7384" stroke-width="1"/>';
+      }
+    }else if(it.t==='regleta'){
+      s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#DDD6C3" stroke="#A39A7E" stroke-width="1.5"/>';
+      s+='<text x="'+(x0+12)+'" y="'+(yt+U/2+5)+'" class="t-b">Regleta de alimentación</text>';
+      for(var e=0;e<8;e++) s+='<circle cx="'+(PX0+40+e*80)+'" cy="'+(yt+U/2)+'" r="11" fill="#fff" stroke="#8A7F5E" stroke-width="2"/><circle cx="'+(PX0+34+e*80)+'" cy="'+(yt+U/2)+'" r="2.5" fill="#5F5638"/><circle cx="'+(PX0+46+e*80)+'" cy="'+(yt+U/2)+'" r="2.5" fill="#5F5638"/>';
+    }else{
+      s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="none" stroke="#B7BCC8" stroke-width="1.5" stroke-dasharray="6 5"/>';
+      s+='<text x="'+(x0+12)+'" y="'+(yt+U/2+5)+'" class="t-s" style="font-size:13px">Espacio libre (reserva)</text>';
+    }
+  });
+  estado.regs.forEach(function(r){
+    s+='<rect x="'+r.x1+'" y="'+(estado.ym-19)+'" width="'+(r.x2-r.x1)+'" height="38" rx="6" fill="#fff" fill-opacity=".9" stroke="#5F6675" stroke-width="2" stroke-dasharray="5 3"/>';
+    s+='<text x="'+((r.x1+r.x2)/2)+'" y="'+(estado.ym-25)+'" text-anchor="middle" class="t-s">Registro '+r.n+'</text>';
+  });
+  estado.rosetas.forEach(function(r){
+    s+='<rect x="'+r.x+'" y="'+YR+'" width="'+r.w+'" height="96" rx="8" fill="#F4F5F7" stroke="#8A91A1" stroke-width="2"/>';
+    s+='<text x="'+(r.x+10)+'" y="'+(YR+19)+'" class="t-b">Roseta '+r.n+'</text>';
+    r.sockets.forEach(function(c){
+      var ci=estado.cables.indexOf(c);
+      s+='<rect class="sk" data-c="'+ci+'" x="'+(c.xs-13)+'" y="'+(YR+28)+'" width="26" height="26" rx="4" fill="'+col(ci)+'" stroke="#4A5160" stroke-width="1.5"/>';
+    });
+  });
+  s+='</svg>';
+  st.innerHTML=s;
+  st.style.aspectRatio=W+' / '+H;
+  var svg=document.getElementById('svg');
+  svg.addEventListener('mouseover',function(e){var t=e.target.closest('[data-c]');hover=t?Number(t.getAttribute('data-c')):null;refrescar();});
+  svg.addEventListener('mouseleave',function(){hover=null;refrescar();});
+  svg.addEventListener('click',function(e){
+    var t=e.target.closest('[data-c]');
+    if(t){var i=Number(t.getAttribute('data-c'));fijo=(fijo===i)?null:i;}else fijo=null;
+    refrescar();
+  });
+  campos=[];
+  estado.unidades.forEach(function(it){
+    if(it.t==='panel') campo({tipo:'panel',panel:it.p,x:302,y:yUnidad(it.u)+U/2,w:64,h:24,ph:'Panel'});
+  });
+  cables.forEach(function(c,i){
+    campo({tipo:'cp',cable:i,x:posY(c,YC+34),y:YC+34,w:62,h:24,ph:'…'});
+    if(c.reg) campo({tipo:'cg',cable:i,x:posY(c,estado.ym),y:estado.ym,w:62,h:24,ph:'…'});
+    campo({tipo:'cr',cable:i,x:posY(c,YR-30),y:YR-30,w:62,h:24,ph:'…'});
+    campo({tipo:'toma',cable:i,x:c.xs,y:YR+74,w:c.ns===1?84:80,h:24,ph:'Toma'});
+  });
+  textoConexiones();
+  reglas();
+  document.getElementById('fb').innerHTML='';
+}
+function ubicPanel(pi){return 'de la U'+estado.unidadesPanel[pi];}
+function textoConexiones(){
+  var ul=document.getElementById('texto'), t='';
+  estado.cables.forEach(function(c,i){
+    var tomaTxt=c.ns===1?'su única toma':(c.pos===0?'la toma de la izquierda':'la toma de la derecha');
+    t+='<li>Cable '+(i+1)+' ('+NCOL[i%8]+'): puerto '+c.puerto+' del panel '+ubicPanel(c.panel)+' → roseta '+c.roseta+', '+tomaTxt+(c.reg?' (el cable pasa por el registro '+c.reg+')':'')+'.</li>';
+  });
+  ul.innerHTML=t;
+}
+function reglas(){
+  var f=function(a,b){return '<tr><td>'+a+'</td><td>'+b+'</td></tr>';};
+  var h='<table class="reglas"><tr><th>Elemento</th><th>Etiqueta</th></tr>';
+  if(esquema==='letras'){
+    h+=f('Panel de parcheo','Una letra. Empieza por <strong>A</strong> en el panel de arriba y sigue por <strong>B</strong>, <strong>C</strong>… hacia abajo.');
+    h+=f('Puerto del panel','La letra del panel y el número del puerto con dos dígitos: <span class="mono">A01</span>, <span class="mono">B04</span>… El número es el que está impreso junto al puerto.');
+  }else{
+    h+=f('Panel de parcheo','El número de la <strong>unidad</strong> (U) del armario donde está instalado, con dos dígitos. El panel que está en la U9 es <span class="mono">09</span>.');
+    h+=f('Puerto del panel','La unidad del panel, dos puntos y el número del puerto con dos dígitos: <span class="mono">09:04</span> es el puerto 4 del panel de la U9.');
+  }
+  h+=f('Cable','El identificador del puerto donde acaba, <strong>en los dos extremos</strong> (donde sale del armario y donde llega a la roseta) y <strong>en cada registro</strong> por el que pasa.');
+  h+=f('Toma de la roseta','El mismo identificador que el puerto al que llega su cable.');
+  h+='</table>';
+  document.getElementById('reglas').innerHTML=h;
+}
+
+function campo(o){
+  var st=document.getElementById('stage');
+  var el=document.createElement('input');
+  el.type='text'; el.maxLength=8; el.autocomplete='off'; el.spellcheck=false;
+  el.placeholder=o.ph;
+  el.style.left=((o.x-o.w/2)/W*100)+'%';
+  el.style.top=((o.y-o.h/2)/H*100)+'%';
+  el.style.width=(o.w/W*100)+'%';
+  el.style.height=(o.h/H*100)+'%';
+  var etq={panel:'Etiqueta del panel '+(o.panel!==undefined?ubicPanel(o.panel):''),cp:'Etiqueta del cable, extremo del armario',cg:'Etiqueta del cable en el registro',cr:'Etiqueta del cable, extremo de la roseta',toma:'Etiqueta de la toma'};
+  var det=o.cable!==undefined?(' (cable '+(o.cable+1)+', color '+NCOL[o.cable%8]+')'):'';
+  el.setAttribute('aria-label',etq[o.tipo]+det);
+  o.el=el;
+  el.addEventListener('input',function(){el.classList.remove('ok','ko','sol');});
+  if(o.cable!==undefined){
+    el.addEventListener('focus',function(){foco=o.cable;refrescar();});
+    el.addEventListener('blur',function(){foco=null;refrescar();});
+    el.addEventListener('mouseenter',function(){hover=o.cable;refrescar();});
+    el.addEventListener('mouseleave',function(){hover=null;refrescar();});
+  }
+  st.appendChild(el);
+  campos.push(o);
+}
+function refrescar(){
+  var i=hover!==null?hover:(foco!==null?foco:fijo);
+  var svg=document.getElementById('svg');
+  svg.classList.toggle('has-hl',i!==null);
+  var ps=svg.querySelectorAll('[data-c]');
+  for(var k=0;k<ps.length;k++) ps[k].classList.toggle('hl',i!==null&&Number(ps[k].getAttribute('data-c'))===i);
+}
+
+/* ---------- comprobación ---------- */
+function norm(v){return v.trim().toUpperCase().replace(/\s+/g,'');}
+function descCable(c){var i=estado.cables.indexOf(c);return 'el cable '+(i+1)+' (<strong style="color:'+col(i)+'">'+NCOL[i%8]+'</strong>)';}
+function diagnostico(o,v){
+  var c=o.cable!==undefined?estado.cables[o.cable]:null;
+  var n=norm(v), esp=esperado(o);
+  if(esquema==='letras'){
+    if(o.tipo==='panel'){
+      if(/^[A-Z]\d+$/.test(n)) return 'Aquí va solo la letra del panel. El número pertenece al puerto.';
+      if(/^[A-Z]$/.test(n)) return 'Empieza por A en el panel de arriba y sigue por B, C… hacia abajo.';
+      return 'El panel se identifica con una sola letra.';
+    }
+    var m=/^([A-Z])(\d{1,3})$/.exec(n), ex=/^([A-Z])(\d+)$/.exec(esp);
+    var otro=estado.cables.some(function(x){return x!==c&&idCable(x)===n;});
+    var pre=o.tipo==='toma'?'La toma lleva el mismo identificador que el puerto al que llega su cable. ':'';
+    if(!m) return pre+'El identificador se forma con la letra del panel y el número del puerto, por ejemplo A05.';
+    if(otro) return pre+'Ese identificador corresponde a otro cable. Fíjate en el color: el puerto del mismo color es el de este cable.';
+    var lOk=(m[1]===ex[1]), nOk=(parseInt(m[2],10)===parseInt(ex[2],10));
+    if(lOk&&nOk) return pre+'Los números llevan dos dígitos: con el puerto 5 se escribe 05.';
+    if(lOk) return pre+'La letra es correcta, pero el número no coincide con el del puerto. Busca en el panel el puerto del color de este cable y mira su número.';
+    if(nOk) return pre+'El número es correcto, pero la letra no es la del panel donde está el puerto de este cable.';
+    return pre+'Ni la letra ni el número coinciden. Busca el puerto del color de este cable: mira en qué panel está y qué número tiene.';
+  }
+  /* esquema por unidades */
+  if(o.tipo==='panel'){
+    if(n.indexOf(':')>=0) return 'Aquí va solo el número de la unidad. El puerto se añade en los cables y las tomas.';
+    if(/^\d{1,2}$/.test(n)){
+      if(parseInt(n,10)===parseInt(esp,10)) return 'El número lleva dos dígitos: la U9 se escribe 09.';
+      return 'El panel se identifica por la unidad del armario donde está instalado: mira el número U que hay a los lados del panel.';
+    }
+    return 'El panel se identifica con el número de su unidad, con dos dígitos.';
+  }
+  var pre2=o.tipo==='toma'?'La toma lleva el mismo identificador que el puerto al que llega su cable. ':'';
+  var mu=/^(\d{1,2}):(\d{1,3})$/.exec(n), eu=/^(\d+):(\d+)$/.exec(esp);
+  if(!mu) return pre2+'El formato es unidad:puerto, con dos dígitos en cada parte, por ejemplo 08:04.';
+  var otro2=estado.cables.some(function(x){return x!==c&&idCable(x)===n;});
+  if(otro2) return pre2+'Ese identificador corresponde a otro cable. Fíjate en el color: el puerto del mismo color es el de este cable.';
+  var uOk=(parseInt(mu[1],10)===parseInt(eu[1],10)), pOk=(parseInt(mu[2],10)===parseInt(eu[2],10));
+  if(uOk&&pOk) return pre2+'Cada parte lleva dos dígitos: la unidad 9 y el puerto 4 se escriben 09:04.';
+  if(uOk) return pre2+'La unidad es correcta, pero el puerto no coincide. Busca en el panel el puerto del color de este cable y mira su número.';
+  if(pOk) return pre2+'El puerto es correcto, pero la unidad no es la del panel donde está. Mira el número U que hay a los lados de ese panel.';
+  return pre2+'Ni la unidad ni el puerto coinciden. Busca el puerto del color de este cable: mira en qué unidad está su panel y qué número tiene.';
+}
+function ubic(o){
+  var c=o.cable!==undefined?estado.cables[o.cable]:null;
+  if(o.tipo==='panel') return 'El panel '+ubicPanel(o.panel);
+  if(o.tipo==='cp') return 'Extremo del armario de '+descCable(c);
+  if(o.tipo==='cg') return 'Registro '+c.reg+' de '+descCable(c);
+  if(o.tipo==='cr') return 'Extremo de la roseta '+c.roseta+' de '+descCable(c);
+  return 'La toma de la roseta '+c.roseta+(c.ns===1?'':(c.pos===0?' (izquierda)':' (derecha)'))+', de '+descCable(c);
+}
+function comprobar(){
+  var ok=0,vacios=0,mal=[];
+  campos.forEach(function(o){
+    var v=o.el.value;
+    o.el.classList.remove('ok','ko','sol');
+    if(!norm(v)){vacios++;mal.push({o:o,msg:'Falta por rellenar.'});o.el.classList.add('ko');return;}
+    if(norm(v)===esperado(o)){ok++;o.el.classList.add('ok');}
+    else{o.el.classList.add('ko');mal.push({o:o,msg:diagnostico(o,v)});}
+  });
+  var coh=[];
+  estado.cables.forEach(function(c,i){
+    var vals=campos.filter(function(o){return o.cable===i&&o.tipo!=='toma';}).map(function(o){return norm(o.el.value);}).filter(Boolean);
+    var dist=vals.filter(function(x,k){return vals.indexOf(x)===k;});
+    if(dist.length>1) coh.push('Has puesto etiquetas distintas a '+descCable(c)+'. Un cable lleva la misma etiqueta en todos sus puntos.');
+  });
+  var total=campos.length, fb=document.getElementById('fb'), h='';
+  if(ok===total){
+    h='<div class="res bien">¡Perfecto! Las '+total+' etiquetas son correctas. Cada cable lleva el identificador de su puerto en todos sus puntos y cada toma coincide con su puerto.</div>';
+  }else{
+    h='<div class="res mal">Has acertado '+ok+' de '+total+' etiquetas'+(vacios?' (te faltan '+vacios+' por rellenar)':'')+'. Corrige las marcadas en rojo.</div>';
+    var grupos={panel:[],cable:[],toma:[]};
+    mal.forEach(function(x){
+      var g=x.o.tipo==='panel'?'panel':(x.o.tipo==='toma'?'toma':'cable');
+      grupos[g].push(x);
+    });
+    var nom={panel:'Paneles',cable:'Cables',toma:'Tomas de las rosetas'};
+    ['panel','cable','toma'].forEach(function(g){
+      if(!grupos[g].length) return;
+      h+='<h3>'+nom[g]+'</h3><ul>';
+      grupos[g].forEach(function(x){h+='<li><strong>'+ubic(x.o)+':</strong> '+x.msg+'</li>';});
+      h+='</ul>';
+    });
+    if(coh.length){h+='<h3>Coherencia</h3><ul>'+coh.map(function(t){return '<li>'+t+'</li>';}).join('')+'</ul>';}
+  }
+  fb.innerHTML=h;
+  fb.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function solucion(){
+  campos.forEach(function(o){o.el.value=esperado(o);o.el.classList.remove('ok','ko');o.el.classList.add('sol');});
+  document.getElementById('fb').innerHTML='<div class="res mal">Esta es la solución. Fíjate en que cada cable lleva el identificador de su puerto en todos sus puntos, y que cada toma repite el de su cable.</div>';
+}
+function borrar(){
+  campos.forEach(function(o){o.el.value='';o.el.classList.remove('ok','ko','sol');});
+  document.getElementById('fb').innerHTML='';
+}
+
+document.getElementById('bComprobar').addEventListener('click',comprobar);
+document.getElementById('bSolucion').addEventListener('click',solucion);
+document.getElementById('bBorrar').addEventListener('click',borrar);
+var semAct1=0;
+function mostrarSem1(sm){semAct1=sm;document.getElementById('sem1').textContent=sm;}
+document.getElementById('bCopiar1').addEventListener('click',function(){
+  var msg=document.getElementById('msgSem1'),t=String(semAct1);
+  var ok=function(){msg.textContent='Copiada.';}, ko=function(){msg.textContent='No se ha podido copiar: cópiala a mano.';};
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok,ko); else ko();
+});
+document.getElementById('bCargar1').addEventListener('click',function(){
+  var v=document.getElementById('inSem1').value.trim(), msg=document.getElementById('msgSem1');
+  if(!/^\d{1,9}$/.test(v)||+v<1){msg.textContent='La semilla es un número entero positivo.';return;}
+  msg.textContent='Ejercicio cargado.';
+  montar(+v);
+});
+document.getElementById('bNuevo').addEventListener('click',function(){montar(Math.floor(Math.random()*1e6)+1);});
+document.getElementById('selEsq1').addEventListener('change',function(){esquema=this.value;borrar();reglas();});
+montar(11);
+window.__sim1={cargar:montar};
+})();
+</script>
+<script>
+(function(){
+'use strict';
+var COLORES=['#D30DA8','#0E8C8C','#B7791F','#3B5BDB','#2F9E44','#E8590C','#7048E8','#C2255C'];
+var NCOL=['magenta','turquesa','ocre','azul','verde','naranja','violeta','rosa oscuro'];
+var W=1200, H=0, HB=0, CX=50, CW=1100, YC=270, YD=510, HD=0;
+var PX0=340, PPASO=30.5, PW=25, U=44, ITEM_TOP=48;
+var esq='f1', est=null, vals={}, st={}, vista='g', hover=null, foco=null, fijo=null;
+var elsA={}, elsB={}, campos=[];
+
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function baraja(rnd,arr){for(var i=arr.length-1;i>0;i--){var j=Math.floor(rnd()*(i+1));var t=arr[i];arr[i]=arr[j];arr[j]=t;}return arr;}
+function pad(n){return (n<10?'0':'')+n;}
+function col(i){return COLORES[i%8];}
+function pu(){return esq==='f2u';}
+
+/* ---------- generador ---------- */
+function genHz(rnd,np){
+  var n=2+(rnd()<.6?1:0), cables=[], used={}, i;
+  for(i=0;i<n;i++){
+    var pi=Math.floor(rnd()*np), p;
+    do{p=1+Math.floor(rnd()*22);}while(used[pi+'-'+p]);
+    used[pi+'-'+p]=1; cables.push({panel:pi,puerto:p});
+  }
+  var opts=n===2?[[2],[1,1]]:[[2,1],[1,2],[1,1,1]];
+  var grupos=opts[Math.floor(rnd()*opts.length)];
+  var regs;
+  if(n===3&&rnd()<.4) regs=[[Math.floor(rnd()*3)]];
+  else{var i2=Math.floor(rnd()*(n-1));regs=[[i2,i2+1]];}
+  return {cables:cables,grupos:grupos,regs:regs};
+}
+function geomHz(a){
+  var hz=a.hz, n=hz.cables.length;
+  hz.cables.forEach(function(c,i){c.xe=n===1?600:150+i*(900/(n-1));c.reg=0;});
+  var anchos=hz.grupos.map(function(s){return s===1?110:200;});
+  var tot=anchos.reduce(function(x,y){return x+y;},0);
+  var hueco=(CW-tot)/(hz.grupos.length+1), x=CX+hueco, k=0;
+  hz.rosetas=[];
+  hz.grupos.forEach(function(s,ri){
+    var r={n:ri+1,x:x,w:anchos[ri],sockets:[]};
+    for(var i=0;i<s;i++){
+      var c=hz.cables[k++];
+      c.roseta=ri+1;c.pos=i;c.ns=s;
+      c.xs=s===1?x+anchos[ri]/2:x+anchos[ri]/2+(i===0?-50:50);
+      r.sockets.push(c);
+    }
+    hz.rosetas.push(r);
+    x+=anchos[ri]+hueco;
+  });
+  hz.regs.forEach(function(lst,ri){lst.forEach(function(i){hz.cables[i].reg=ri+1;});});
+}
+function gen(semilla){
+  var rnd=mulberry(semilla);
+  var nd=3+Math.floor(rnd()*3), fl=[], i;
+  var f0=Math.floor(rnd()*4); fl=[f0,f0]; for(i=2;i<nd;i++) fl.push(Math.floor(rnd()*4));
+  fl.sort(function(a,b){return a-b;});
+  var cont={};
+  var arms=fl.map(function(f,k){var L=cont[f]||0;cont[f]=L+1;return {k:k,floor:f,name:f+'ABCDE'.charAt(L),nc:rnd()<.7?2:1,cables:[]};});
+  var tot=function(){return arms.reduce(function(s,a){return s+a.nc;},0);};
+  while(tot()>8){var d=arms.filter(function(a){return a.nc===2;});d[Math.floor(rnd()*d.length)].nc=1;}
+  arms.forEach(function(a){
+    a.np=1+Math.floor(rnd()*3);
+    a.units=[];for(var p=0;p<a.np;p++)a.units.push(3*(a.np-p)+3);
+    a.up=Math.floor(rnd()*a.np);
+    a.hz=genHz(rnd,a.np); geomHz(a);
+  });
+  var uA=30+Math.floor(rnd()*11), uB=20+Math.floor(rnd()*9);
+  var used={}, cables=[];
+  var libre=function(key){var p;do{p=1+Math.floor(rnd()*24);}while(used[key+'-'+p]);used[key+'-'+p]=1;return p;};
+  arms.forEach(function(a){
+    var mp=Math.floor(rnd()*2), ports;
+    if(a.nc===2){
+      var p0;
+      do{p0=1+Math.floor(rnd()*23);}while(used['m'+mp+'-'+p0]||used['m'+mp+'-'+(p0+1)]);
+      used['m'+mp+'-'+p0]=1;used['m'+mp+'-'+(p0+1)]=1;ports=[p0,p0+1];
+    }else ports=[libre('m'+mp)];
+    for(var j=0;j<a.nc;j++){
+      var c={arm:a.k,j:j,dp:a.up,dport:a.nc===2?23+j:24,dunit:a.units[a.up],mp:mp,mport:ports[j],munit:mp?uB:uA,reg:0};
+      a.cables.push(cables.length);
+      cables.push(c);
+    }
+  });
+  var nv=cables.length, vregs=[], iv=Math.floor(rnd()*(nv-1));
+  vregs.push([iv,iv+1]);
+  var lib=[];
+  for(var jv=0;jv<nv;jv++){ if(jv<=iv-2||jv>=iv+3) lib.push(jv); }
+  if(lib.length) vregs.push([lib[Math.floor(rnd()*lib.length)]]);
+  vregs.sort(function(x,y){return x[0]-y[0];});
+  vregs.forEach(function(lst,ri){lst.forEach(function(ci){cables[ci].reg=ri+1;});});
+  return {arms:arms,cables:cables,mu:[uA,uB],vregs:vregs};
+}
+/* ---------- identificadores ---------- */
+function idMA(c){return pu()?pad(c.munit)+':'+pad(c.mport):'AB'.charAt(c.mp)+pad(c.mport);}
+function idD(c){return pu()?pad(c.dunit)+':'+pad(c.dport):'ABC'.charAt(c.dp)+pad(c.dport);}
+function idH(a,hc){return pu()?pad(a.units[hc.panel])+':'+pad(hc.puerto):'ABC'.charAt(hc.panel)+pad(hc.puerto);}
+function ends(o){
+  var c=est.cables[o.cable], a=est.arms[c.arm];
+  var ma='MA-'+idMA(c), de=a.name+'-'+idD(c);
+  return (o.tipo==='cm'||o.tipo==='pm'||o.tipo==='cg')?[ma,de]:[de,ma];
+}
+function esperado(o){
+  if(o.tipo==='arm') return o.arm<0?'MA':est.arms[o.arm].name;
+  if(o.tipo==='panel') return pu()?pad(o.unit):'ABC'.charAt(o.p);
+  if(o.h){var a=est.arms[o.arm];return a.name+'-'+idH(a,a.hz.cables[o.j]);}
+  var c=est.cables[o.cable], ar=est.arms[c.arm];
+  if(esq==='f1') return 'MA/'+ar.name+'.'+(c.j+1);
+  var e=ends(o);
+  return (o.tipo==='cm'||o.tipo==='cd'||o.tipo==='cg')?e[0]+'/'+e[1]:'TO'+e[1];
+}
+function definir(){
+  campos=[];
+  campos.push({key:'nMA',tipo:'arm',arm:-1});
+  est.arms.forEach(function(a){campos.push({key:'n'+a.k,tipo:'arm',arm:a.k});});
+  est.cables.forEach(function(c,i){
+    ['cm'].concat(c.reg?['cg']:[],['cd','pm','pd']).forEach(function(t){campos.push({key:t+i,tipo:t,cable:i});});
+  });
+  for(var p=0;p<2;p++) campos.push({key:'PM'+p,tipo:'panel',arm:-1,p:p,unit:est.mu[p]});
+  est.arms.forEach(function(a){
+    a.units.forEach(function(u,p){campos.push({key:'PD'+a.k+'_'+p,tipo:'panel',arm:a.k,p:p,unit:u});});
+    a.hz.cables.forEach(function(c,j){
+      var t=['cp'].concat(c.reg?['cg']:[],['cr','toma']);
+      t.forEach(function(tp){campos.push({key:'h'+tp+a.k+'_'+j,tipo:tp,h:true,arm:a.k,j:j});});
+    });
+  });
+}
+
+/* ---------- vista general ---------- */
+function posY(c,y){
+  var y0=YC-12,y3=YD+10,c1=y0+0.45*(y3-y0),c2=y0+0.55*(y3-y0),lo=0,hi=1;
+  for(var i=0;i<30;i++){var m=(lo+hi)/2,u=1-m;var yy=u*u*u*y0+3*u*u*m*c1+3*u*m*m*c2+m*m*m*y3;if(yy<y)lo=m;else hi=m;}
+  var t=(lo+hi)/2,v=1-t;
+  return c.xe*(v*v*v+3*v*v*t)+c.xs*(3*v*t*t+t*t*t);
+}
+function nueva(semilla){mostrarSem2(semilla);est=gen(semilla);vals={};st={};construir();}
+function construir(){
+  definir(); vista='g'; hover=foco=fijo=null;
+  document.getElementById('vGeneral').hidden=false;
+  document.getElementById('vArmario').hidden=true;
+  dibujarGeneral(); texto(); reglas();
+  document.getElementById('fb2').innerHTML='';
+}
+function detCable(i){return ' (cable '+(i+1)+', color '+NCOL[i%8]+')';}
+function dibujarGeneral(){
+  var arms=est.arms, cables=est.cables, nd=arms.length, n=cables.length;
+  var maxnp=Math.max.apply(null,arms.map(function(a){return a.np;}));
+  HD=56+maxnp*54+8+34; H=YD+HD+20;
+  var slot=1140/nd, Wd=Math.min(220,slot-8);
+  arms.forEach(function(a){a.cx=30+slot*(a.k+.5);});
+  cables.forEach(function(c,k){
+    var a=arms[c.arm];
+    c.xe=150+k*900/(n-1);
+    c.xs=a.nc===2?a.cx+(c.j===0?-40:40):a.cx;
+  });
+  var s='<svg id="svg2a" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Armario principal MA y '+nd+' armarios de distribución en distintas plantas, unidos por cableado vertical">';
+  cables.forEach(function(c,k){
+    var y0=YC-12,y3=YD+10;
+    var d='M'+c.xe+','+y0+' C'+c.xe+','+(y0+0.45*(y3-y0))+' '+c.xs+','+(y0+0.55*(y3-y0))+' '+c.xs+','+y3;
+    s+='<path class="cable" data-c="'+k+'" stroke="'+col(k)+'" d="'+d+'"/>';
+    s+='<path class="cable-hit" data-c="'+k+'" d="'+d+'" fill="none" stroke="transparent" stroke-width="18" pointer-events="stroke"/>';
+  });
+  s+='<rect x="'+CX+'" y="20" width="'+CW+'" height="'+(YC-22)+'" rx="10" fill="#F4F5F7" stroke="#9AA1B0" stroke-width="2.5"/>';
+  s+='<text x="'+(CX+16)+'" y="40" class="t-b">Armario principal</text>';
+  var uM={}; cables.forEach(function(c,k){uM[c.mp+'-'+c.mport]=k;});
+  var ys=[48,170], pmf=[];
+  for(var p=0;p<2;p++){
+    var yt=ys[p], x0=CX+62, w=CW-124;
+    s+='<text x="'+(CX+28)+'" y="'+(yt+27)+'" text-anchor="middle" class="t-n">U'+est.mu[p]+'</text>';
+    s+='<text x="'+(CX+CW-28)+'" y="'+(yt+27)+'" text-anchor="middle" class="t-n">U'+est.mu[p]+'</text>';
+    s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="40" rx="4" fill="#fff" stroke="#6B7384" stroke-width="2"/>';
+    s+='<text x="'+(x0+12)+'" y="'+(yt+27)+'" class="t-b" style="font-size:12px">Panel de parcheo</text>';
+    var mine=[];
+    for(var q=1;q<=24;q++){
+      var px=PX0+PPASO*(q-1), ci=uM[p+'-'+q];
+      if(ci!==undefined) mine.push({i:ci,port:q});
+      s+='<text x="'+(px+PW/2)+'" y="'+(yt+13)+'" text-anchor="middle" class="t-p">'+q+'</text>';
+      s+='<rect class="pt" x="'+px+'" y="'+(yt+16)+'" width="'+PW+'" height="22" rx="3" fill="'+(ci!==undefined?col(ci):'#D9DCE3')+'" stroke="#4A5160" stroke-width="1.5"'+(ci!==undefined?' data-c="'+ci+'"':'')+'/>';
+    }
+    var xs=mine.map(function(c){return PX0+PPASO*(c.port-1)+PW/2;}), gap=108, minX=x0+60, maxX=x0+w-60, jj;
+    for(jj=0;jj<xs.length;jj++){ xs[jj]=Math.max(xs[jj],jj?xs[jj-1]+gap:minX); }
+    for(jj=xs.length-1;jj>=0;jj--){ xs[jj]=Math.min(xs[jj],jj<xs.length-1?xs[jj+1]-gap:maxX); }
+    var fy=yt+68;
+    mine.forEach(function(c,j2){
+      var px2=PX0+PPASO*(c.port-1)+PW/2;
+      s+='<path class="cable" data-c="'+c.i+'" stroke="'+col(c.i)+'" d="M'+px2+','+(yt+38)+' L'+px2+','+(yt+46)+' L'+xs[j2]+','+(fy-12)+'"/>';
+      pmf.push({i:c.i,x:xs[j2],y:fy});
+    });
+  }
+  s+='<text x="'+(CX+CW/2)+'" y="'+(ys[0]+112)+'" text-anchor="middle" class="t-s">··· otros equipos (pasacables, switches…) ···</text>';
+  arms.forEach(function(a){
+    var bx=a.cx-Wd/2;
+    s+='<rect x="'+bx+'" y="'+YD+'" width="'+Wd+'" height="'+HD+'" rx="8" fill="#F4F5F7" stroke="#9AA1B0" stroke-width="2.5"/>';
+    s+='<text x="'+a.cx+'" y="'+(YD+18)+'" text-anchor="middle" class="t-b">N.º '+(a.k+1)+' · Planta '+a.floor+'</text>';
+    var uD={}; a.cables.forEach(function(k){uD[cables[k].dport]=k;});
+    a.units.forEach(function(u,pp){
+      var py=YD+58+pp*54;
+      s+='<rect x="'+(bx+5)+'" y="'+py+'" width="'+(Wd-10)+'" height="50" rx="4" fill="#fff" stroke="#6B7384" stroke-width="1.5"/>';
+      s+='<text x="'+(bx+27)+'" y="'+(py+12)+'" text-anchor="middle" class="t-n" style="font-size:9px">U'+u+'</text>';
+      for(var q=1;q<=24;q++){
+        var r=Math.floor((q-1)/12), cc=(q-1)%12, ci=(pp===a.up)?uD[q]:undefined;
+        var px=bx+51+cc*13.4, py2=py+6+r*22;
+        s+='<rect class="pt" x="'+px+'" y="'+py2+'" width="12" height="17" rx="2" fill="'+(ci!==undefined?col(ci):'#D9DCE3')+'" stroke="#4A5160" stroke-width="1"'+(ci!==undefined?' data-c="'+ci+'"':'')+'><title>Puerto '+q+'</title></rect>';
+        s+='<text x="'+(px+6)+'" y="'+(py2+12)+'" text-anchor="middle" style="font-size:7px;font-weight:bold;font-family:Arial,sans-serif;pointer-events:none;fill:'+(ci!==undefined?'#fff':'#5F6675')+'">'+q+'</text>';
+      }
+    });
+  });
+  var YMg=YC+(YD-YC)/2, regg=[];
+  est.vregs.forEach(function(lst,ri){
+    var par=lst.length===2, fxs=[];
+    lst.forEach(function(ci,q){
+      var yy=par?YMg+(q?16:-16):YMg;
+      fxs.push(posY(cables[ci],yy));
+      regg.push({i:ci,x:fxs[q],y:yy});
+    });
+    var x1=Math.min.apply(null,fxs)-84, x2=Math.max.apply(null,fxs)+84, hh=par?72:40;
+    s+='<rect x="'+x1+'" y="'+(YMg-hh/2)+'" width="'+(x2-x1)+'" height="'+hh+'" rx="6" fill="#fff" fill-opacity=".92" stroke="#5F6675" stroke-width="2" stroke-dasharray="5 3"/>';
+    s+='<text x="'+(x1-6)+'" y="'+(YMg+4)+'" text-anchor="end" class="t-s">Registro '+(ri+1)+'</text>';
+  });
+  s+='</svg>';
+  var stg=document.getElementById('stg2a');
+  stg.innerHTML=s; stg.style.aspectRatio=W+' / '+H; elsA={};
+  enlazar(document.getElementById('svg2a'));
+  campos.forEach(function(o){
+    if(o.h) return;
+    if(o.tipo==='arm'){
+      if(o.arm<0) mk(stg,elsA,H,o,CX+CW/2,33,84,22,'Etiqueta','Etiqueta del armario principal');
+      else{
+        var a=arms[o.arm];
+        mk(stg,elsA,H,o,a.cx,YD+40,84,24,'Etiqueta','Etiqueta del armario n.º '+(a.k+1)+' de la planta '+a.floor);
+      }
+    }else if(o.tipo==='pm'){
+      var pf=pmf.filter(function(f){return f.i===o.cable;})[0];
+      mk(stg,elsA,H,o,pf.x,pf.y,100,24,'Etiqueta','Etiqueta del puerto del cable'+detCable(o.cable)+' en el armario principal');
+    }else if(o.tipo==='cg'){
+      var rg=regg.filter(function(f){return f.i===o.cable;})[0];
+      mk(stg,elsA,H,o,rg.x,rg.y,150,24,'…','Etiqueta del cable en el registro'+detCable(o.cable));
+    }else if(o.tipo==='cm'){
+      var c=cables[o.cable], yy=YC+34+(o.cable%2)*30;
+      mk(stg,elsA,H,o,posY(c,yy),yy,150,24,'…','Etiqueta del cable en el extremo del armario principal'+detCable(o.cable));
+    }else if(o.tipo==='cd'){
+      var c2=cables[o.cable], a2=arms[c2.arm], y2=YD-(a2.nc===2&&c2.j===0?60:32);
+      mk(stg,elsA,H,o,posY(c2,y2),y2,150,24,'…','Etiqueta del cable en el extremo del armario n.º '+(a2.k+1)+detCable(o.cable));
+    }else if(o.tipo==='panel'){
+      if(o.arm<0) mk(stg,elsA,H,o,302,ys[o.p]+22,64,24,'Panel','Etiqueta del panel '+(o.p===0?'de arriba':'de abajo')+' del armario principal');
+      else{
+        var a3=arms[o.arm], bx3=a3.cx-Wd/2;
+        mk(stg,elsA,H,o,bx3+27,YD+58+o.p*54+32,36,20,'Pan.','Etiqueta del panel '+(o.p+1)+' (contando desde arriba) del armario n.º '+(a3.k+1));
+      }
+    }
+  });
+  arms.forEach(function(a){
+    var b=document.createElement('button'); b.type='button'; b.className='entrar';
+    b.textContent='Entrar'; b.setAttribute('aria-label','Entrar en el armario n.º '+(a.k+1)+' de la planta '+a.floor);
+    b.style.left=((a.cx-50)/W*100)+'%'; b.style.top=((YD+HD-34)/H*100)+'%'; b.style.width=(100/W*100)+'%'; b.style.height=(26/H*100)+'%';
+    b.addEventListener('click',function(){abrir(a.k);});
+    stg.appendChild(b);
+  });
+  aplicar();
+}
+function mk(host,reg,hh,o,x,y,w,h,ph,aria){
+  var el=document.createElement('input');
+  el.type='text'; el.maxLength=24; el.autocomplete='off'; el.spellcheck=false; el.placeholder=ph;
+  el.style.left=((x-w/2)/W*100)+'%'; el.style.top=((y-h/2)/hh*100)+'%';
+  el.style.width=(w/W*100)+'%'; el.style.height=(h/hh*100)+'%';
+  el.setAttribute('aria-label',aria);
+  el.value=vals[o.key]||'';
+  if(st[o.key]) el.classList.add(st[o.key]);
+  el.addEventListener('input',function(){vals[o.key]=el.value;delete st[o.key];el.classList.remove('ok','ko','sol');});
+  var hl=o.h?('h'+o.j):(o.cable!==undefined?String(o.cable):null);
+  if(hl!==null){
+    el.addEventListener('focus',function(){foco=hl;refrescar();});
+    el.addEventListener('blur',function(){foco=null;refrescar();});
+    el.addEventListener('mouseenter',function(){hover=hl;refrescar();});
+    el.addEventListener('mouseleave',function(){hover=null;refrescar();});
+  }
+  host.appendChild(el); reg[o.key]=el;
+}
+function aplicar(){
+  [elsA,elsB].forEach(function(r){
+    Object.keys(r).forEach(function(k){
+      r[k].classList.remove('ok','ko','sol');
+      if(st[k]) r[k].classList.add(st[k]);
+    });
+  });
+}
+function enlazar(svg){
+  svg.addEventListener('mouseover',function(e){var t=e.target.closest('[data-c]');hover=t?t.getAttribute('data-c'):null;refrescar();});
+  svg.addEventListener('mouseleave',function(){hover=null;refrescar();});
+  svg.addEventListener('click',function(e){
+    var t=e.target.closest('[data-c]');
+    if(t){var i=t.getAttribute('data-c');fijo=(fijo===i)?null:i;}else fijo=null;
+    refrescar();
+  });
+}
+function refrescar(){
+  var i=hover!==null?hover:(foco!==null?foco:fijo);
+  var svg=document.querySelector(vista==='g'?'#svg2a':'#svg2b');
+  if(!svg) return;
+  svg.classList.toggle('has-hl',i!==null);
+  var ps=svg.querySelectorAll('[data-c]');
+  for(var k=0;k<ps.length;k++) ps[k].classList.toggle('hl',i!==null&&ps[k].getAttribute('data-c')===i);
+}
+
+/* ---------- vista interior ---------- */
+function cabeceraInterior(k){
+  vista=k; hover=foco=fijo=null;
+  document.getElementById('vGeneral').hidden=true;
+  document.getElementById('vArmario').hidden=false;
+  document.getElementById('tArm').textContent=k<0?'Dentro del armario principal MA':'Dentro del armario n.º '+(k+1)+' (planta '+est.arms[k].floor+')';
+}
+function terminarInterior(svgStr,fields){
+  var stg=document.getElementById('stg2b');
+  stg.innerHTML=svgStr; stg.style.aspectRatio=W+' / '+HB; elsB={};
+  enlazar(document.getElementById('svg2b'));
+  fields.forEach(function(f){mk(stg,elsB,HB,f.o,f.x,f.y,f.w,f.h,f.ph,f.aria);});
+  document.getElementById('bVolver').focus();
+  window.scrollTo({top:document.getElementById('a2').offsetTop,behavior:'smooth'});
+}
+function abrir(k){ abrirDist(k); }
+function abrirDist(k){
+  cabeceraInterior(k);
+  var a=est.arms[k], hz=a.hz, np=a.np, NU=3*np+3, n=hz.cables.length, i;
+  var YCi=ITEM_TOP+NU*U+20, YRi=YCi+270;
+  HB=YRi+96+24;
+  var YM=YCi+(YRi-YCi)/2;
+  var yU=function(u){return ITEM_TOP+(NU-u)*U;};
+  var py=function(c,y){
+    var y0=YCi-12,y3=YRi+4,c1=y0+0.45*(y3-y0),c2=y0+0.55*(y3-y0),lo=0,hi=1;
+    for(var q=0;q<30;q++){var m=(lo+hi)/2,u=1-m;var yy=u*u*u*y0+3*u*u*m*c1+3*u*m*m*c2+m*m*m*y3;if(yy<y)lo=m;else hi=m;}
+    var t=(lo+hi)/2,v=1-t;
+    return c.xe*(v*v*v+3*v*v*t)+c.xs*(3*v*t*t+t*t*t);
+  };
+  var s='<svg id="svg2b" viewBox="0 0 '+W+' '+HB+'" role="img" aria-label="Interior del armario n.º '+(k+1)+': paneles, cableado horizontal y rosetas">';
+  hz.cables.forEach(function(c,j){
+    var y0=YCi-12,y3=YRi+4;
+    var d='M'+c.xe+','+y0+' C'+c.xe+','+(y0+0.45*(y3-y0))+' '+c.xs+','+(y0+0.55*(y3-y0))+' '+c.xs+','+y3;
+    s+='<path class="cable" data-c="h'+j+'" stroke="'+col(j)+'" d="'+d+'"/>';
+    s+='<path class="cable-hit" data-c="h'+j+'" d="'+d+'" fill="none" stroke="transparent" stroke-width="18" pointer-events="stroke"/>';
+  });
+  s+='<rect x="'+CX+'" y="20" width="'+CW+'" height="'+(YCi-20)+'" rx="10" fill="#F4F5F7" stroke="#9AA1B0" stroke-width="2.5"/>';
+  s+='<text x="'+(CX+16)+'" y="40" class="t-b">Armario n.º '+(k+1)+' · Planta '+a.floor+' · '+NU+' U</text>';
+  s+='<text x="'+(CX+CW-16)+'" y="40" text-anchor="end" class="t-s">La unidad 1 es la de abajo</text>';
+  s+='<rect x="'+(CX+2)+'" y="'+ITEM_TOP+'" width="54" height="'+(NU*U)+'" fill="#E1E4EA"/>';
+  s+='<rect x="'+(CX+CW-56)+'" y="'+ITEM_TOP+'" width="54" height="'+(NU*U)+'" fill="#E1E4EA"/>';
+  for(var u=NU;u>=1;u--){
+    s+='<text x="'+(CX+28)+'" y="'+(yU(u)+U/2+5)+'" text-anchor="middle" class="t-n">U'+u+'</text>';
+    s+='<text x="'+(CX+CW-28)+'" y="'+(yU(u)+U/2+5)+'" text-anchor="middle" class="t-n">U'+u+'</text>';
+  }
+  var usados={};
+  hz.cables.forEach(function(c,j){usados[c.panel+'-'+c.puerto]=j;});
+  var uv={}; a.cables.forEach(function(ci){uv[est.cables[ci].dport]=ci;});
+  var fields=[], x0=CX+62, w=CW-124;
+  fields.push({o:{key:'n'+k,tipo:'arm',arm:k},x:CX+CW/2,y:33,w:84,h:22,ph:'Etiqueta',aria:'Etiqueta de este armario'});
+  for(var pi=0;pi<np;pi++){
+    var up=NU-3*pi, yt=yU(up);
+    s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#fff" stroke="#6B7384" stroke-width="2"/>';
+    s+='<text x="'+(x0+12)+'" y="'+(yt+U/2+5)+'" class="t-b" style="font-size:12px">Panel de parcheo</text>';
+    for(var p=1;p<=24;p++){
+      var px=PX0+PPASO*(p-1), cj=usados[pi+'-'+p], cv=(pi===a.up)?uv[p]:undefined;
+      var attr=cj!==undefined?' data-c="h'+cj+'"':(cv!==undefined?' data-c="'+cv+'"':'');
+      var fill=cj!==undefined?col(cj):(cv!==undefined?col(cv):'#D9DCE3');
+      s+='<text x="'+(px+PW/2)+'" y="'+(yt+14)+'" text-anchor="middle" class="t-p">'+p+'</text>';
+      s+='<rect class="pt" x="'+px+'" y="'+(yt+17)+'" width="'+PW+'" height="22" rx="3" fill="'+fill+'" stroke="'+(cv!==undefined?'#111':'#4A5160')+'" stroke-width="'+(cv!==undefined?2.5:1.5)+'"'+attr+'/>';
+    }
+    fields.push({o:{key:'PD'+k+'_'+pi,tipo:'panel',arm:k,p:pi,unit:a.units[pi]},x:302,y:yt+22,w:64,h:24,ph:'Panel',aria:'Etiqueta del panel '+(pi+1)+' (contando desde arriba)'});
+    /* pasacables y switch */
+    var yp=yU(up-1), ys2=yU(up-2);
+    s+='<rect x="'+x0+'" y="'+(yp+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#E9ECF1" stroke="#9AA1B0" stroke-width="1.5"/>';
+    s+='<text x="'+(x0+12)+'" y="'+(yp+U/2+5)+'" class="t-b" style="font-size:12px">Pasacables</text>';
+    for(var q=0;q<24;q++) s+='<circle cx="'+(PX0+q*PPASO+PW/2)+'" cy="'+(yp+U/2)+'" r="8" fill="none" stroke="#8A91A1" stroke-width="2"/>';
+    s+='<rect x="'+x0+'" y="'+(ys2+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#3A4152" stroke="#232834" stroke-width="1.5"/>';
+    s+='<text x="'+(x0+12)+'" y="'+(ys2+U/2+5)+'" class="t-b" style="fill:#fff;font-size:12px">Switch</text>';
+    for(var r=1;r<=24;r++){
+      var sx=PX0+PPASO*(r-1);
+      s+='<text x="'+(sx+PW/2)+'" y="'+(ys2+13)+'" text-anchor="middle" class="t-p" style="fill:#C9CEDA">'+r+'</text>';
+      s+='<rect x="'+sx+'" y="'+(ys2+16)+'" width="'+PW+'" height="15" rx="2" fill="#8A91A1" stroke="#1E222B" stroke-width="1"/>';
+      s+='<circle cx="'+(sx+PW/2)+'" cy="'+(ys2+36)+'" r="2.6" fill="#2A303D" stroke="#6B7384" stroke-width="1"/>';
+    }
+    /* enlace al armario principal */
+    if(pi===a.up){
+      var ci2=a.cables.slice(), fx=ci2.length===2?[950,1050]:[1040];
+      ci2.forEach(function(cv2,jj){
+        var pxc=PX0+PPASO*(est.cables[cv2].dport-1)+PW/2, fyy=yp+U/2;
+        s+='<path class="cable" data-c="'+cv2+'" stroke="'+col(cv2)+'" d="M'+pxc+','+(yt+39)+' L'+pxc+','+(yt+46)+' L'+fx[jj]+','+(fyy-12)+'"/>';
+        fields.push({o:{key:'pd'+cv2,tipo:'pd',cable:cv2},x:fx[jj],y:fyy,w:88,h:24,ph:'Etiqueta',aria:'Etiqueta del puerto '+est.cables[cv2].dport+' del panel '+(pi+1)+' (cableado vertical'+detCable(cv2)+')'});
+      });
+    }
+  }
+  /* unidades libres y regleta */
+  [3,2].forEach(function(u){
+    var yt=yU(u);
+    s+='<rect x="'+x0+'" y="'+(yt+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="none" stroke="#B7BCC8" stroke-width="1.5" stroke-dasharray="6 5"/>';
+    s+='<text x="'+(x0+12)+'" y="'+(yt+U/2+5)+'" class="t-s" style="font-size:13px">Espacio libre (reserva)</text>';
+  });
+  var yg=yU(1);
+  s+='<rect x="'+x0+'" y="'+(yg+2)+'" width="'+w+'" height="'+(U-4)+'" rx="4" fill="#DDD6C3" stroke="#A39A7E" stroke-width="1.5"/>';
+  s+='<text x="'+(x0+12)+'" y="'+(yg+U/2+5)+'" class="t-b" style="font-size:12px">Regleta de alimentación</text>';
+  for(var e=0;e<8;e++) s+='<circle cx="'+(PX0+40+e*80)+'" cy="'+(yg+U/2)+'" r="11" fill="#fff" stroke="#8A7F5E" stroke-width="2"/><circle cx="'+(PX0+34+e*80)+'" cy="'+(yg+U/2)+'" r="2.5" fill="#5F5638"/><circle cx="'+(PX0+46+e*80)+'" cy="'+(yg+U/2)+'" r="2.5" fill="#5F5638"/>';
+  /* registros y rosetas */
+  var regsd=hz.regs.map(function(lst,ri){
+    var xs=lst.map(function(j){return py(hz.cables[j],YM);});
+    return {n:ri+1,x1:Math.min.apply(null,xs)-48,x2:Math.max.apply(null,xs)+48};
+  });
+  regsd.forEach(function(r){
+    s+='<rect x="'+r.x1+'" y="'+(YM-19)+'" width="'+(r.x2-r.x1)+'" height="38" rx="6" fill="#fff" fill-opacity=".9" stroke="#5F6675" stroke-width="2" stroke-dasharray="5 3"/>';
+    s+='<text x="'+((r.x1+r.x2)/2)+'" y="'+(YM-25)+'" text-anchor="middle" class="t-s">Registro '+r.n+'</text>';
+  });
+  hz.rosetas.forEach(function(r){
+    s+='<rect x="'+r.x+'" y="'+YRi+'" width="'+r.w+'" height="96" rx="8" fill="#F4F5F7" stroke="#8A91A1" stroke-width="2"/>';
+    s+='<text x="'+(r.x+10)+'" y="'+(YRi+19)+'" class="t-b">Roseta '+r.n+'</text>';
+    r.sockets.forEach(function(c){
+      var j=hz.cables.indexOf(c);
+      s+='<rect class="sk" data-c="h'+j+'" x="'+(c.xs-13)+'" y="'+(YRi+28)+'" width="26" height="26" rx="4" fill="'+col(j)+'" stroke="#4A5160" stroke-width="1.5"/>';
+    });
+  });
+  s+='</svg>';
+  hz.cables.forEach(function(c,j){
+    var o=function(t){return {key:'h'+t+k+'_'+j,tipo:t,h:true,arm:k,j:j};};
+    var det=' (cable '+(j+1)+', color '+NCOL[j%8]+')';
+    fields.push({o:o('cp'),x:py(c,YCi+34),y:YCi+34,w:76,h:24,ph:'…',aria:'Etiqueta del cable, extremo del armario'+det});
+    if(c.reg) fields.push({o:o('cg'),x:py(c,YM),y:YM,w:76,h:24,ph:'…',aria:'Etiqueta del cable en el registro'+det});
+    fields.push({o:o('cr'),x:py(c,YRi-30),y:YRi-30,w:76,h:24,ph:'…',aria:'Etiqueta del cable, extremo de la roseta'+det});
+    fields.push({o:o('toma'),x:c.xs,y:YRi+74,w:c.ns===1?84:80,h:24,ph:'Toma',aria:'Etiqueta de la toma'+det});
+  });
+  terminarInterior(s,fields);
+}
+function volver(){
+  vista='g'; hover=foco=fijo=null; elsB={};
+  Object.keys(elsA).forEach(function(k){elsA[k].value=vals[k]||'';});
+  aplicar();
+  document.getElementById('vGeneral').hidden=false;
+  document.getElementById('vArmario').hidden=true;
+  refrescar();
+}
+
+/* ---------- textos ---------- */
+function texto(){
+  var t='';
+  est.cables.forEach(function(c,i){
+    var a=est.arms[c.arm];
+    t+='<li>Cable vertical '+(i+1)+' ('+NCOL[i%8]+'): puerto '+c.mport+' del panel de la U'+c.munit+' del armario principal → puerto '+c.dport+' del panel de la U'+c.dunit+' del armario n.º '+(a.k+1)+' (planta '+a.floor+')'+(c.reg?', pasando por el registro '+c.reg:'')+'.</li>';
+  });
+  est.arms.forEach(function(a){
+    t+='<li>Armario n.º '+(a.k+1)+': planta '+a.floor+'; '+a.np+' panel(es), en las unidades '+a.units.join(', ')+' (de arriba abajo).<ul>';
+    a.hz.cables.forEach(function(c,j){
+      t+='<li>Cable '+(j+1)+' ('+NCOL[j%8]+'): puerto '+c.puerto+' del panel '+(c.panel+1)+' → roseta '+c.roseta+(c.ns===1?'':(c.pos===0?', toma izquierda':', toma derecha'))+(c.reg?' (por el registro '+c.reg+')':'')+'.</li>';
+    });
+    t+='</ul></li>';
+  });
+  document.getElementById('texto2').innerHTML=t;
+}
+function reglas(){
+  var f=function(a,b){return '<tr><td>'+a+'</td><td>'+b+'</td></tr>';};
+  var h='<table class="reglas"><tr><th>Elemento</th><th>Etiqueta</th></tr>';
+  h+=f('Armario de distribución','El número de la <strong>planta</strong> (la baja es la 0) y una <strong>letra</strong> para cada armario de esa planta: A para el primero contando de izquierda a derecha, B para el segundo… Ejemplos: <span class="mono">0A</span>, <span class="mono">1A</span>, <span class="mono">1B</span>. ');
+  h+=f('Armario principal','<span class="mono">MA</span> (M de <em>main</em>, principal).');
+  h+=f('Panel',pu()?'El número de su <strong>unidad</strong> (U) en el armario, con dos dígitos: <span class="mono">06</span>.':'Una letra: <strong>A</strong> para el panel de arriba, <strong>B</strong> para el siguiente…');
+  h+='<tr><th colspan="2">Cableado vertical ('+(esq==='f1'?'forma 1':'forma 2')+')</th></tr>';
+  if(esq==='f1'){
+    h+=f('Cable','<em>armario-origen/armario-destino.n</em>, igual <strong>en sus dos extremos</strong>. El origen es el principal: <span class="mono">MA/1A.1</span> es el primer cable entre MA y 1A, <span class="mono">MA/1A.2</span> el segundo. La <em>n</em> distingue los cables entre los dos mismos armarios.');
+    h+=f('Puerto del panel','La misma etiqueta que el cable (<span class="mono">MA/1A.1</span>), en el puerto donde acaba, en <strong>los dos armarios</strong>. En los registros también la misma.');
+  }else{
+    var ej=pu()?['MA-34:04','1A-06:24']:['MA-A04','1A-B24'];
+    h+=f('Puerto (dentro de una etiqueta)','El armario, un guion y '+(pu()?'la unidad del panel, dos puntos y el puerto, con dos dígitos: ':'la letra del panel y el puerto con dos dígitos: ')+'<span class="mono">'+ej[0]+'</span>.');
+    h+=f('Cable','<em>puerto-de-este-lado/puerto-del-otro-lado</em>. En el extremo del principal: <span class="mono">'+ej[0]+'/'+ej[1]+'</span>. En el extremo de 1A: <span class="mono">'+ej[1]+'/'+ej[0]+'</span>. En los registros se usa la del extremo del principal.');
+    h+=f('Puerto del panel','<span class="mono">to</span> (hacia) y el puerto del <strong>otro</strong> extremo del cable. En el puerto de MA: <span class="mono">to '+ej[1]+'</span>.');
+  }
+  h+='<tr><th colspan="2">Cableado horizontal (dentro de cada armario de distribución)</th></tr>';
+  h+=f('Cable','El identificador de su puerto <strong>con el del armario delante</strong>: <span class="mono">'+(pu()?'1A-09:12':'1A-B12')+'</span>, en el extremo del armario, en cada registro y en el extremo de la roseta.');
+  h+=f('Toma de la roseta','El mismo identificador que su cable. (Los paneles del horizontal son '+(pu()?'por unidad.)':'por letra.)'));
+  h+='</table>';
+  document.getElementById('reglas2').innerHTML=h;
+}
+
+/* ---------- comprobación ---------- */
+function norm(v){return (v||'').trim().toUpperCase().replace(/\s+/g,'');}
+function descCable(i){return 'el cable '+(i+1)+' (<strong style="color:'+col(i)+'">'+NCOL[i%8]+'</strong>)';}
+function descArm(k){return 'el armario n.º '+(k+1)+' (planta '+est.arms[k].floor+')';}
+function ubic(o){
+  if(o.tipo==='arm') return o.arm<0?'Etiqueta del armario principal':'Etiqueta del armario n.º '+(o.arm+1)+' (planta '+est.arms[o.arm].floor+')';
+  if(o.tipo==='panel') return 'Panel '+(o.p+1)+' (contando desde arriba) '+(o.arm<0?'del armario principal':'de '+descArm(o.arm));
+  if(o.h){
+    var nm={cp:'extremo del armario',cg:'registro',cr:'extremo de la roseta',toma:'toma'}[o.tipo];
+    return 'Cable horizontal '+(o.j+1)+' (<strong style="color:'+col(o.j)+'">'+NCOL[o.j%8]+'</strong>), '+nm;
+  }
+  var c=est.cables[o.cable];
+  if(o.tipo==='cm') return 'Extremo del armario principal de '+descCable(o.cable);
+  if(o.tipo==='cg') return 'Registro de '+descCable(o.cable);
+  if(o.tipo==='cd') return 'Extremo de '+descArm(c.arm)+' de '+descCable(o.cable);
+  if(o.tipo==='pm') return 'Puerto de '+descCable(o.cable)+' en el armario principal';
+  return 'Puerto de '+descCable(o.cable)+' en '+descArm(c.arm);
+}
+function parseId(s){
+  var m;
+  if(esq==='f2l'){m=/^([A-Z])(\d{1,3})$/.exec(s);return m?{pan:m[1],port:+m[2]}:null;}
+  m=/^(\d{1,2}):(\d{1,3})$/.exec(s);return m?{pan:+m[1],port:+m[2]}:null;
+}
+function parseParte(s){
+  var m=/^([0-9A-Z]+)-(.+)$/.exec(s); if(!m) return null;
+  var id=parseId(m[2]); if(!id) return null;
+  id.arm=m[1]; id.txt=s; return id;
+}
+function cmpParte(g,e,lado){
+  var r=[];
+  if(g.arm!==e.arm) r.push('el armario '+lado+' no es el correcto');
+  if(String(g.pan)!==String(e.pan)) r.push(esq==='f2l'?'la letra del panel '+lado+' no es la correcta':'la unidad del panel '+lado+' no es la correcta');
+  if(g.port!==e.port) r.push('el número de puerto '+lado+' no coincide');
+  if(!r.length&&g.txt!==e.txt) r.push('los números llevan dos dígitos (04, no 4)');
+  return r;
+}
+function ejemploF2(){return esq==='f2l'?'MA-A04/1A-B24':'MA-34:04/1A-06:24';}
+function diagH(o,n){
+  var a=est.arms[o.arm], esp=esperado(o);
+  var rx=pu()?/^([0-9A-Z]+)-(\d{1,2}):(\d{1,3})$/:/^([0-9A-Z]+)-([A-Z])(\d{1,3})$/;
+  var pre=o.tipo==='toma'?'La toma lleva el mismo identificador que su cable. ':'';
+  var m=rx.exec(n), e=rx.exec(esp);
+  if(!m) return pre+'El formato es el armario, un guion y el identificador del puerto, por ejemplo '+(pu()?'1A-09:12':'1A-B12')+'.';
+  var otro=a.hz.cables.some(function(c,j){return j!==o.j&&(a.name+'-'+idH(a,c))===n;});
+  if(otro) return pre+'Ese identificador corresponde a otro cable de este armario. Fíjate en el color: el puerto del mismo color es el de este cable.';
+  var aOk=m[1]===e[1], pOk=String(parseInt(m[2],10)||m[2])===String(parseInt(e[2],10)||e[2]), nOk=parseInt(m[3],10)===parseInt(e[3],10);
+  var r=[];
+  if(!aOk) r.push('el armario del principio no es este');
+  if(!pOk) r.push(pu()?'la unidad del panel no es la correcta':'la letra del panel no es la correcta');
+  if(!nOk) r.push('el número de puerto no coincide con el del puerto de este cable');
+  if(!r.length) return pre+'Los números llevan dos dígitos (04, no 4).';
+  return pre+'En la etiqueta, '+r.join('; ')+'.';
+}
+function diag(o,n){
+  var m;
+  if(o.tipo==='arm'&&o.arm<0) return 'El armario principal se identifica con MA (M de main, principal).';
+  if(o.tipo==='arm'){
+    if(/^\d$/.test(n)) return 'Falta la letra: la planta y una letra para cada armario de esa planta (1A, 1B…).';
+    if(/^[A-Z]$/.test(n)) return 'Falta la planta: primero el número de planta y después la letra.';
+    if(/^[A-Z]\d$/.test(n)) return 'Primero va la planta (el número) y después la letra.';
+    if((m=/^(\d)([A-Z])$/.exec(n))){
+      if(+m[1]!==est.arms[o.arm].floor) return 'La planta no es la de este armario. Mira el número de planta que aparece en su cuadro.';
+      return 'La planta es correcta, pero la letra no es la que toca: A para el primer armario de esa planta contando de izquierda a derecha, B para el segundo…';
+    }
+    return 'El armario se identifica con el número de planta y una letra, por ejemplo 1A.';
+  }
+  if(o.tipo==='panel'){
+    if(!pu()) return /^[A-Z]\d+$/.test(n)?'Aquí va solo la letra del panel.':'El panel se identifica con una letra: A el de arriba, B el siguiente…';
+    if(/^\d$/.test(n)) return 'El número lleva dos dígitos: la U6 se escribe 06.';
+    return 'El panel se identifica por el número de su unidad (el que ves en su recuadro), con dos dígitos.';
+  }
+  if(o.h) return diagH(o,n);
+  if(esq==='f1') return null;
+  var e=ends(o), tp=o.tipo, g;
+  if(tp==='cm'||tp==='cd'||tp==='cg'){
+    var parts=n.split('/');
+    var fmt='El formato es puerto-de-este-lado/puerto-del-otro-lado, por ejemplo '+ejemploF2()+'.';
+    if(parts.length!==2) return fmt;
+    var g1=parseParte(parts[0]), g2=parseParte(parts[1]);
+    if(!g1||!g2) return fmt+' Cada puerto es armario, guion y '+(esq==='f2l'?'letra del panel y número':'unidad, dos puntos y número')+'.';
+    var e1=parseParte(e[0]), e2=parseParte(e[1]);
+    if(g1.txt===e2.txt&&g2.txt===e1.txt) return 'Has puesto los extremos al revés: primero va el puerto de este lado del cable y después el del otro lado.';
+    var r1=cmpParte(g1,e1,'de este lado'), r2=cmpParte(g2,e2,'del otro lado'), t=[];
+    if(r1.length) t.push('En la primera parte (este lado): '+r1.join(', ')+'.');
+    if(r2.length) t.push('En la segunda parte (el otro lado): '+r2.join(', ')+'.');
+    return t.join(' ')||fmt;
+  }
+  if(n.indexOf('TO')!==0){
+    return parseParte(n)?'Falta «to» (hacia) delante: la etiqueta del puerto dice hacia dónde va el cable.':'El formato es «to» y el puerto del otro extremo, por ejemplo to '+e[1]+'.';
+  }
+  g=parseParte(n.slice(2));
+  if(!g) return 'Después de «to» va el puerto del otro extremo: armario, guion y '+(esq==='f2l'?'letra del panel y número':'unidad, dos puntos y número')+'.';
+  if(g.txt===e[0]) return 'Ese es el puerto de este mismo lado. Después de «to» va el puerto del otro extremo del cable.';
+  return 'En el puerto: '+cmpParte(g,parseParte(e[1]),'del otro extremo').join(', ')+'.';
+}
+function evalF1(){
+  var res={}, refs=[];
+  est.cables.forEach(function(c,i){
+    var a=est.arms[c.arm], info=[];
+    ['cm'].concat(c.reg?['cg']:[],['cd','pm','pd']).forEach(function(t){
+      var v=norm(vals[t+i]), r={key:t+i,msg:null,n:null};
+      if(!v){r.msg='Falta por rellenar.';r.vacio=true;}
+      else{
+        var m=/^([0-9A-Z]+)\/([0-9A-Z]+)\.(\d+)$/.exec(v);
+        if(!m) r.msg='El formato es origen/destino.n, por ejemplo MA/1A.1.';
+        else if(m[1]!=='MA') r.msg=(m[1]===a.name&&m[2]==='MA')?'Has puesto el origen y el destino al revés: el origen es el armario principal, MA.':'El origen es el armario principal: MA.';
+        else if(m[2]!==a.name) r.msg='El destino no es el armario al que va este cable. Fíjate en su planta y en su letra.';
+        else if(+m[3]<1) r.msg='La numeración empieza en 1.';
+        else r.n=+m[3];
+      }
+      info.push(r);
+    });
+    var base=info.filter(function(r){return r.n!==null;})[0];
+    var ref=base?base.n:null;
+    refs.push(ref);
+    info.forEach(function(r){
+      if(!r.msg&&ref!==null&&r.n!==ref) r.msg='El número no coincide con el de las otras etiquetas de este mismo cable: un cable lleva la misma etiqueta en todos sus puntos.';
+    });
+    res[i]=info;
+  });
+  est.cables.forEach(function(c,i){
+    if(refs[i]===null) return;
+    for(var j=0;j<i;j++){
+      if(est.cables[j].arm===c.arm&&refs[j]===refs[i]){
+        res[i].forEach(function(r){if(!r.msg) r.msg='Ese número ya lo has usado en otro cable que va al mismo armario: deben ser distintos.';});
+        break;
+      }
+    }
+  });
+  return res;
+}
+function comprobar(){
+  var ok=0, mal=[], f1=esq==='f1'?evalF1():null;
+  st={};
+  campos.forEach(function(o){
+    var v=norm(vals[o.key]), msg=null, vacio=false;
+    if(f1&&o.cable!==undefined){
+      var r=f1[o.cable].filter(function(x){return x.key===o.key;})[0];
+      msg=r.msg; vacio=!!r.vacio;
+    }else if(!v){msg='Falta por rellenar.';vacio=true;}
+    else if(v!==esperado(o)) msg=diag(o,v)||'No es correcta.';
+    if(msg){st[o.key]='ko';mal.push({o:o,msg:msg,vacio:vacio});} else{st[o.key]='ok';ok++;}
+  });
+  aplicar();
+  var total=campos.length, vac=mal.filter(function(x){return x.vacio;}).length, fb=document.getElementById('fb2'), h;
+  if(ok===total){
+    h='<div class="res bien">¡Perfecto! Las '+total+' etiquetas son correctas.</div>';
+  }else{
+    h='<div class="res mal">Has acertado '+ok+' de '+total+' etiquetas'+(vac?' (te faltan '+vac+' por rellenar)':'')+'. Corrige las marcadas en rojo.</div>';
+    var secciones=[
+      ['Armarios',function(o){return o.tipo==='arm';}],
+      ['Paneles',function(o){return o.tipo==='panel';}],
+      ['Cableado vertical: cables',function(o){return o.tipo==='cm'||o.tipo==='cd'||o.tipo==='cg';}],
+      ['Cableado vertical: puertos de los paneles',function(o){return o.tipo==='pm'||o.tipo==='pd';}]
+    ];
+    secciones.forEach(function(sc){
+      var l=mal.filter(function(x){return sc[1](x.o);});
+      if(!l.length) return;
+      h+='<h3>'+sc[0]+'</h3><ul>';
+      l.forEach(function(x){h+='<li><strong>'+ubic(x.o)+':</strong> '+x.msg+'</li>';});
+      h+='</ul>';
+    });
+    est.arms.forEach(function(a){
+      var l=mal.filter(function(x){return x.o.h&&x.o.arm===a.k;});
+      if(!l.length) return;
+      var ne=l.filter(function(x){return !x.vacio;}), ve=l.length-ne.length;
+      h+='<h3>Cableado horizontal del armario n.º '+(a.k+1)+' (planta '+a.floor+', dentro del armario)</h3><ul>';
+      if(ve) h+='<li>Te faltan '+ve+' etiquetas por rellenar.</li>';
+      ne.forEach(function(x){h+='<li><strong>'+ubic(x.o)+':</strong> '+x.msg+'</li>';});
+      h+='</ul>';
+    });
+  }
+  fb.innerHTML=h;
+  fb.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function solucion(){
+  st={};
+  campos.forEach(function(o){vals[o.key]=esperado(o);st[o.key]='sol';});
+  [elsA,elsB].forEach(function(r){Object.keys(r).forEach(function(k){r[k].value=vals[k]||'';});});
+  aplicar();
+  document.getElementById('fb2').innerHTML='<div class="res mal">Esta es la solución. Entra en los armarios para ver las etiquetas de los puertos y del cableado horizontal.</div>';
+}
+function borrar(){
+  vals={}; st={};
+  [elsA,elsB].forEach(function(r){Object.keys(r).forEach(function(k){r[k].value='';});});
+  aplicar();
+  document.getElementById('fb2').innerHTML='';
+}
+document.getElementById('bComprobar2').addEventListener('click',comprobar);
+document.getElementById('bSolucion2').addEventListener('click',solucion);
+document.getElementById('bBorrar2').addEventListener('click',borrar);
+var semAct2=0;
+function mostrarSem2(sm){semAct2=sm;document.getElementById('sem2').textContent=sm;}
+document.getElementById('bCopiar2').addEventListener('click',function(){
+  var msg=document.getElementById('msgSem2'),t=String(semAct2);
+  var ok=function(){msg.textContent='Copiada.';}, ko=function(){msg.textContent='No se ha podido copiar: cópiala a mano.';};
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok,ko); else ko();
+});
+document.getElementById('bCargar2').addEventListener('click',function(){
+  var v=document.getElementById('inSem2').value.trim(), msg=document.getElementById('msgSem2');
+  if(!/^\d{1,9}$/.test(v)||+v<1){msg.textContent='La semilla es un número entero positivo.';return;}
+  msg.textContent='Ejercicio cargado.';
+  nueva(+v);
+});
+document.getElementById('bNuevo2').addEventListener('click',function(){nueva(Math.floor(Math.random()*1e6)+1);});
+document.getElementById('bVolver').addEventListener('click',volver);
+document.getElementById('selEsq2').addEventListener('change',function(){esq=this.value;vals={};st={};construir();});
+nueva(7);
+window.__sim2={cargar:nueva,abrir:abrir,volver:volver,get est(){return est;}};
+})();
+</script>
+<script>
+(function(){
+var t1=document.getElementById('tab1'),t2=document.getElementById('tab2'),a1=document.getElementById('a1'),a2=document.getElementById('a2');
+function sync(){
+  var n=a2.hidden?1:2, sm=document.getElementById('sem'+n).textContent;
+  try{history.replaceState(null,'','?caso='+n+'&semilla='+sm);}catch(e){}
+}
+function ir(n){
+  a1.hidden=n!==1;a2.hidden=n!==2;
+  t1.setAttribute('aria-selected',n===1);t2.setAttribute('aria-selected',n===2);
+  sync();
+}
+t1.addEventListener('click',function(){ir(1);});
+t2.addEventListener('click',function(){ir(2);});
+['bNuevo','bCargar1','bNuevo2','bCargar2'].forEach(function(id){
+  document.getElementById(id).addEventListener('click',function(){setTimeout(sync,0);});
+});
+[1,2].forEach(function(n){
+  document.getElementById('bEnlace'+n).addEventListener('click',function(){
+    sync();
+    var msg=document.getElementById('msgSem'+n);
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(location.href).then(function(){msg.textContent='Enlace copiado.';},function(){msg.textContent='No se ha podido copiar el enlace.';});
+    else msg.textContent='No se ha podido copiar el enlace.';
+  });
+});
+var q=new URLSearchParams(location.search), caso=q.get('caso')==='2'||location.hash==='#a2'?2:1, sm=q.get('semilla');
+if(sm&&/^\d{1,9}$/.test(sm)&&+sm>=1){(caso===2?window.__sim2:window.__sim1).cargar(+sm);}
+if(caso===2) ir(2);
+})();
+</script>
+
+</body>
+</html>
