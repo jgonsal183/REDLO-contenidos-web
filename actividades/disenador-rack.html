@@ -68,6 +68,7 @@ details.cat{margin:.3rem 0;border:1px solid var(--line);border-radius:8px;paddin
 details.cat>summary{padding:.3rem .6rem;font-size:.8rem;color:var(--gray);text-transform:uppercase;letter-spacing:.04em;background:var(--light);border-radius:8px;cursor:pointer}
 details.cat[open]>summary{border-radius:8px 8px 0 0}
 details.cat .cc{padding:.3rem .5rem}
+#catalogo{max-height:min(65vh,32rem);overflow-y:auto;overscroll-behavior:contain}
 .lst{display:flex;flex-direction:column;gap:.3rem}
 .lst button{font:inherit;text-align:left;border:2px solid var(--line);background:#fff;border-radius:8px;padding:.4rem .6rem;cursor:pointer;line-height:1.3}
 .lst button:hover{border-color:var(--mag)}
@@ -220,6 +221,7 @@ table.rev td.n{text-align:right;font-weight:bold;white-space:nowrap}
 <div class="ctrl">
   <button class="b" id="bNuevoDis" type="button">Nuevo diseño</button>
   <button class="b pri" id="bDescargar" type="button">Guardar diseño (JSON)</button>
+  <button class="b" id="bGuardarComo" type="button" hidden>Guardar como…</button>
   <button class="b" id="bCargar" type="button">Abrir diseño (JSON)…</button>
   <button class="b" id="bCodigo" type="button">Código del diseño</button>
   <input type="file" id="fichero" accept=".json,application/json" hidden>
@@ -284,6 +286,19 @@ table.rev td.n{text-align:right;font-weight:bold;white-space:nowrap}
   <div class="cab"><span>Confirmar</span><button type="button" id="dlgConfX" aria-label="Cerrar">×</button></div>
   <div class="cont"><p id="dlgConfTxt"></p><div class="ctrl"><button class="b peligro" id="dlgConfSi" type="button">Sí, borrar</button><button class="b sec" id="dlgConfNo" type="button">Cancelar</button></div></div>
 </dialog>
+<dialog id="dlgNuevo">
+  <div class="cab"><span id="dlgNuevoTit">Nuevo</span><button type="button" id="dlgNuevoX" aria-label="Cerrar">×</button></div>
+  <form class="cont form" id="frmNuevo" autocomplete="off" novalidate></form>
+</dialog>
+<dialog id="dlgNum">
+  <div class="cab"><span>Elemento genérico</span><button type="button" id="dlgNumX" aria-label="Cerrar">×</button></div>
+  <form class="cont form" id="frmNum" novalidate>
+    <label for="nNum" id="nNumLbl">Altura en U</label>
+    <input type="number" id="nNum" min="1" value="1">
+    <p class="nota" id="nNumErr" role="alert" style="color:var(--red);margin:0"></p>
+    <div class="botones"><button class="b chico pri" type="submit">Aceptar</button><button class="b chico sec" type="button" id="nNumNo">Cancelar</button></div>
+  </form>
+</dialog>
 <dialog id="dlgFicha">
   <div class="cab"><span id="dlgFichaTit">Ficha</span><button type="button" id="dlgFichaX" aria-label="Cerrar">×</button></div>
   <div class="cont form" id="dlgFichaCont"></div>
@@ -336,10 +351,7 @@ var CAT=[
   {id:'sai1',nombre:'SAI',u:1,fam:'sai',cod:'SAI'},
   {id:'sai2',nombre:'SAI',u:2,fam:'sai',cod:'SAI'},
   {id:'sai3',nombre:'SAI',u:3,fam:'sai',cod:'SAI'},
-  {id:'generico1',nombre:'Elemento genérico',u:1,fam:'generico',cod:'G'},
-  {id:'generico2',nombre:'Elemento genérico',u:2,fam:'generico',cod:'G'},
-  {id:'generico3',nombre:'Elemento genérico',u:3,fam:'generico',cod:'G'},
-  {id:'genericox',nombre:'Elemento genérico de X U',u:null,fam:'generico',cod:'G'},
+  {id:'genericox',nombre:'Elemento genérico',u:null,fam:'generico',cod:'G'},
   {id:'regleta6',nombre:'Regleta eléctrica 6 schukos',u:1,fam:'regleta',schukos:6,cod:'RG'},
   {id:'regleta8',nombre:'Regleta eléctrica 8 schukos',u:1,fam:'regleta',schukos:8,cod:'RG'},
   /* para bandejas (no enracables) */
@@ -350,12 +362,12 @@ var CAT=[
 var GRUPOS=[
   ['Conectividad',['panel24','panel48','panelvacio24','fibra24lc','fibra24sc','switch24','switch48','switch24sfp','router1']],
   ['Organización',['pasaanilla','pasacepillo','tapa1','bandeja1','bandeja2']],
-  ['Equipos',['servidor1','servidor2','servidor3','sai1','sai2','sai3','generico1','generico2','generico3','genericox']],
+  ['Equipos',['servidor1','servidor2','servidor3','sai1','sai2','sai3','genericox']],
   ['Alimentación',['regleta6','regleta8']],
   ['Para bandejas',['routerb','genb1','genb2']]
 ];
 var cat={}; CAT.forEach(function(c){cat[c.id]=c;});
-var ALIAS={fibra24:'fibra24lc'};
+var ALIAS={fibra24:'fibra24lc',generico1:'genericox',generico2:'genericox',generico3:'genericox'};
 var FONDO={panel:'#3A4152',panelvacio:'#3A4152',fibra:'#3A4152',switch:'#C5D0CB',router:'#C5D0CB',pasa:'#C9CEDA',tapa:'#C9CEDA',bandeja:'#C9CEDA',regleta:'#C9CEDA',servidor:'#DCE8F7',sai:'#FCE8E6',generico:'#EAE4F7',brouter:'#C5D0CB',bgenerico:'#EAE4F7'};
 
 /* ---------- catálogo de la roseta ---------- */
@@ -410,7 +422,11 @@ function idRosLibre(){return idLibre(design.rosetas,'ROS');}
 function idElLibre(a,c){return idLibre(a.elementos,c.cod);}
 function itemsBandeja(b){return (b.mitades||[]).filter(function(x){return x;});}
 function idBanLibre(b,c){return idLibre(itemsBandeja(b),c.cod);}
-function idCompleto(a,e){return a.id+'-'+e.id;}
+function idCompleto(a,e){return e.id?a.id+'-'+e.id:'(sin ID)';}
+function refEl(a,e){return nombreEl(e)+' '+(e.id?idCompleto(a,e):'('+rango(a,e.u,e.n)+')');}
+function idBand(a,b,it){return it.id?a.id+'-'+(b.id||'…')+'-'+it.id:'(sin ID)';}
+function urlOk(s){return /^https?:\/\//i.test(String(s||'').trim());}
+function idDesde(lista,obj,txt){var base=normId(txt).slice(0,12),v=base,k=2;while(base&&lista.some(function(x){return x!==obj&&x.id===v;})){var t=String(k++);v=base.slice(0,12-t.length)+t;}return v;}
 function etqArm(a){return a.etiqueta||a.id;}
 function etqEl(e){return e.etiqueta||e.id;}
 function fondoEl(e){return e.color||FONDO[cat[e.tipo].fam]||'#fff';}
@@ -418,19 +434,56 @@ function lum(hex){var m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
 function textoEl(e){return e.colorTexto||(lum(fondoEl(e))<0.5?'#E6E9EF':'#222733');}
 function nombreEl(e){var c=cat[e.tipo];return ((c.fam==='generico'||c.fam==='bgenerico')&&e.nombre)?e.nombre:c.nombre;}
 
-function nuevoArmario(){
-  var a={uid:uid('a'),id:idArmLibre(),etiqueta:'',descripcion:'',tipo:'mural',numeracion:design.numeracion==='arriba'?'arriba':'abajo',u:12,alto:0,ancho:0,fondo:0,medidasAuto:true,ubicacion:'',enlace:'',elementos:[]};
+function crearArmario(cfg){
+  var a={uid:uid('a'),id:cfg.id,etiqueta:cfg.etiqueta,descripcion:'',tipo:cfg.tipo,numeracion:design.numeracion==='arriba'?'arriba':'abajo',u:cfg.u,alto:0,ancho:0,fondo:0,medidasAuto:true,ubicacion:'',enlace:'',elementos:[]};
   var s=sugerir(a.tipo,a.u);a.alto=s.alto;a.ancho=s.ancho;a.fondo=s.fondo;
   design.armarios.push(a);selA=a.uid;selE=null;vista='arm';commit();
 }
-function nuevaRoseta(){
-  var r={uid:uid('r'),id:idRosLibre(),etiqueta:'',descripcion:'',huecos:2,alto:0,ancho:0,fondo:0,medidasAuto:true,ubicacion:'',enlace:'',contenido:[null,null]};
+function crearRoseta(cfg){
+  var r={uid:uid('r'),id:cfg.id,etiqueta:cfg.etiqueta,descripcion:'',huecos:cfg.huecos,alto:0,ancho:0,fondo:0,medidasAuto:true,ubicacion:'',enlace:'',contenido:[]};
+  for(var i=0;i<r.huecos;i++)r.contenido.push(null);
   var s=sugerirR(r.huecos);r.alto=s.alto;r.ancho=s.ancho;r.fondo=s.fondo;
   design.rosetas.push(r);selR=r.uid;vista='ros';commit();
 }
+/* formulario de creación: etiqueta e ID van a la par mientras el ID no se toque a mano */
+function abrirNuevo(tit,campos,aviso,boton,valida){
+  var h=campos+'<div class="dos"><div><label for="nEtq">Etiqueta (se ve en el dibujo)</label><input type="text" id="nEtq" class="mono" maxlength="16"></div><div><label for="nId">ID</label><input type="text" id="nId" class="mono id" maxlength="12" placeholder="'+esc(aviso.def)+'"></div></div>';
+  h+='<p class="nota">Al escribir la etiqueta, el ID se rellena igual; cámbialo si quieres. Si dejas el ID vacío se usa «'+esc(aviso.def)+'».</p><p class="nota" id="nErr" role="alert" style="color:var(--red);margin:0"></p>';
+  h+='<div class="botones"><button class="b chico pri" type="submit">'+boton+'</button><button class="b chico sec" type="button" id="nCancel">Cancelar</button></div>';
+  $('dlgNuevoTit').textContent=tit;$('frmNuevo').innerHTML=h;
+  var tocado=false;
+  $('nId').addEventListener('input',function(){tocado=this.value!=='';});
+  $('nEtq').addEventListener('input',function(){if(!tocado)$('nId').value=normId(this.value).slice(0,12);});
+  $('nCancel').addEventListener('click',function(){$('dlgNuevo').close();});
+  $('frmNuevo').onsubmit=function(ev){
+    ev.preventDefault();
+    var id=normId($('nId').value)||aviso.def,err=valida(id,$('nEtq').value.trim());
+    if(err){$('nErr').textContent=err;return;}
+    $('dlgNuevo').close();
+  };
+  $('dlgNuevo').showModal();$('nEtq').focus();
+}
+function nuevoArmario(){
+  var def=idArmLibre();
+  abrirNuevo('Nuevo armario','<div class="dos"><div><label for="nTipo">Tipo</label><select id="nTipo"><option value="mural" selected>Mural (de pared)</option><option value="suelo">De suelo</option></select></div><div><label for="nU">Número de U</label><input type="number" id="nU" min="1" max="47" value="6"></div></div>',{def:def},'Crear armario',function(id,etq){
+    var u=parseInt($('nU').value,10);
+    if(!(u>=1&&u<=47))return 'El número de U debe estar entre 1 y 47.';
+    if(design.armarios.some(function(x){return x.id===id;}))return 'Ya hay un armario con el ID '+id+'.';
+    crearArmario({id:id,etiqueta:etq,tipo:$('nTipo').value,u:u});
+  });
+}
+function nuevaRoseta(){
+  var def=idRosLibre();
+  abrirNuevo('Nueva roseta','<label for="nHu">Número de huecos dobles (1 a 4)</label><input type="number" id="nHu" min="1" max="4" value="2">',{def:def},'Crear roseta',function(id,etq){
+    var n=parseInt($('nHu').value,10);
+    if(!(n>=1&&n<=4))return 'El número de huecos debe estar entre 1 y 4.';
+    if(design.rosetas.some(function(x){return x.id===id;}))return 'Ya hay una roseta con el ID '+id+'.';
+    crearRoseta({id:id,etiqueta:etq,huecos:n});
+  });
+}
 function puertosNuevos(n){var p=[];for(var i=1;i<=n;i++)p.push({uid:uid('p'),etiqueta:''});return p;}
 function nuevoElemento(a,c,n,u){
-  var e={uid:uid('e'),id:idElLibre(a,c),etiqueta:'',tipo:c.id,u:u,n:n,descripcion:''},i;
+  var e={uid:uid('e'),id:'',etiqueta:'',tipo:c.id,u:u,n:n,descripcion:'',enlace:''},i;
   if(c.fam==='generico')e.nombre='';
   if(c.puertos)e.puertos=puertosNuevos(c.puertos);
   if(c.sfp)e.sfp=puertosNuevos(c.sfp);
@@ -439,7 +492,7 @@ function nuevoElemento(a,c,n,u){
   return e;
 }
 function nuevoItemBandeja(b,c){
-  var e={uid:uid('e'),id:idBanLibre(b,c),etiqueta:'',tipo:c.id,ancho:c.bandeja,descripcion:''};
+  var e={uid:uid('e'),id:'',etiqueta:'',tipo:c.id,ancho:c.bandeja,descripcion:'',enlace:''};
   if(c.fam==='bgenerico')e.nombre='';
   if(c.puertos)e.puertos=puertosNuevos(c.puertos);
   return e;
@@ -468,12 +521,12 @@ function bandejaVacia(b){return !b.mitades||(!b.mitades[0]&&!b.mitades[1]);}
 function renovaUids(e){e.uid=uid('e');(e.puertos||[]).forEach(function(q){q.uid=uid('p');});(e.sfp||[]).forEach(function(q){q.uid=uid('p');});(e.huecos||[]).forEach(function(q){q.uid=uid('h');});(e.mitades||[]).forEach(function(m){if(m)renovaUids(m);});}
 function clonar(el){
   var a=armSel(),c=JSON.parse(JSON.stringify(el));
-  renovaUids(c);c.id=idElLibre(a,cat[el.tipo]);c.etiqueta='';
+  renovaUids(c);c.id=el.id?idElLibre(a,cat[el.tipo]):'';c.etiqueta='';
   var u,sitio=null;
   for(u=el.u+el.n;u<=a.u-el.n+1&&sitio===null;u++)if(cabe(a,u,el.n))sitio=u;
   for(u=el.u-el.n;u>=1&&sitio===null;u--)if(cabe(a,u,el.n))sitio=u;
   if(sitio===null){msg('No hay sitio libre para el clon ('+el.n+' U seguidas). Libera espacio o mueve elementos.');return;}
-  c.u=sitio;a.elementos.push(c);selE=c.uid;commit();msg('Elemento clonado en '+rangoTxt(a,sitio,el.n)+' con el ID '+idCompleto(a,c)+'.','ok');
+  c.u=sitio;a.elementos.push(c);selE=c.uid;commit();msg('Elemento clonado en '+rangoTxt(a,sitio,el.n)+(c.id?' con el ID '+idCompleto(a,c):'')+'.','ok');
 }
 function quitar(el){
   var a=armSel();a.elementos=a.elementos.filter(function(e){return e.uid!==el.uid;});
@@ -483,8 +536,8 @@ function clonarItemBandeja(a,b,it){
   if(it.ancho===2){msg('Un equipo que ocupa toda la bandeja no se puede clonar dentro de la misma bandeja. Clona la bandeja entera.');return;}
   var m=b.mitades[0]===it?1:0;
   if(!mitadLibre(b,m)){msg('La otra mitad de la bandeja está ocupada.');return;}
-  var c=JSON.parse(JSON.stringify(it));renovaUids(c);c.id=idBanLibre(b,cat[it.tipo]);c.etiqueta='';
-  b.mitades[m]=c;commit();msg('Equipo clonado en la otra mitad con el ID '+a.id+'-'+b.id+'-'+c.id+'.','ok');
+  var c=JSON.parse(JSON.stringify(it));renovaUids(c);c.id=it.id?idBanLibre(b,cat[it.tipo]):'';c.etiqueta='';
+  b.mitades[m]=c;commit();msg('Equipo clonado en la otra mitad'+(c.id?' con el ID '+idBand(a,b,c):'')+'.','ok');
 }
 function quitarItemBandeja(b,it){b.mitades=b.mitades.map(function(x){return x===it?null:x;});commit();}
 function clonarArmario(a){
@@ -497,17 +550,29 @@ function borrarArmario(a){
     design.armarios=design.armarios.filter(function(x){return x.uid!==a.uid;});selA=null;selE=null;saneaSel();commit();
   });
 }
-function cambiaId(lista,obj,v,inp,que){
+function cambiaId(lista,obj,v,inp,que,auto){
   v=normId(v);
-  if(!v){msg('El ID no puede estar vacío.');inp.value=obj.id;return false;}
+  if(!v){
+    if(!auto){msg('El ID no puede estar vacío.');inp.value=obj.id;return false;}
+    if(obj.id){obj.id='';commit();}
+    return true;
+  }
   if(lista.some(function(x){return x!==obj&&x.id===v;})){msg('Ya hay otro '+que+' con el ID '+v+'.');inp.value=obj.id;return false;}
-  if(v!==obj.id){obj.id=v;commit();}else inp.value=v;
+  var cambia=v!==obj.id;
+  if(auto&&!obj.etiqueta){obj.etiqueta=v;cambia=true;}
+  if(cambia){obj.id=v;commit();}else inp.value=v;
   return true;
 }
-
+/* etiqueta de un elemento del armario o de una bandeja: si no tiene ID, se le da uno igual */
+function cambiaEtq(lista,obj,v){
+  var cambia=obj.etiqueta!==v;
+  obj.etiqueta=v;
+  if(v&&!obj.id){obj.id=idDesde(lista,obj,v);cambia=true;}
+  if(cambia)commit();
+}
 /* ---------- rosetas: modelo ---------- */
 function nuevoItemRoseta(r,tipo){
-  var c=RCAT[tipo],e={uid:uid('m'),id:idLibre(itemsRoseta(r).map(function(x){return x.obj;}),c.cod),etiqueta:'',tipo:tipo,descripcion:''};
+  var c=RCAT[tipo],e={uid:uid('m'),id:idLibre(itemsRoseta(r).map(function(x){return x.obj;}),c.cod),etiqueta:'',tipo:tipo,descripcion:'',enlace:''};
   if(c.ventanas)e.ventanas=puertosNuevos(c.ventanas);
   if(tipo==='marco')e.pos=[null,null];
   return e;
@@ -725,7 +790,7 @@ function dibujoElemento(s,a,e){
 }
 function dibujoItemBandeja(s,a,b,it,x,y,w,h){
   var c=cat[it.tipo],fill=fondoEl(it),tc=textoEl(it),osc=lum(fill)<0.5,i;
-  s.push('<g class="bitem" data-b="'+b.uid+'" data-i="'+it.uid+'"><title>'+esc(nombreEl(it))+' · '+a.id+'-'+b.id+'-'+it.id+'</title>');
+  s.push('<g class="bitem" data-b="'+b.uid+'" data-i="'+it.uid+'"><title>'+esc(nombreEl(it))+' · '+esc(idBand(a,b,it))+'</title>');
   s.push('<rect class="cuerpo" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="5" fill="'+fill+'"/>');
   s.push('<text x="'+(x+8)+'" y="'+(y+14)+'" class="t-nom2" style="fill:'+tc+'">'+esc(nombreEl(it))+'</text>');
   if(c.fam==='brouter'){
@@ -819,13 +884,13 @@ function dibujarArmario(){
   a.elementos.forEach(function(e){
     var yt=yU(a,e.u+e.n-1),hh=e.n*UH,ar=nombreEl(e)+' '+idCompleto(a,e);
     var et=ov('input',CX+CW-RR-2+5,yt+hh/2-13,RR-10,26,'etq'+(e.uid===selE?' sel':''));et.value=e.etiqueta;et.placeholder=e.id;et.maxLength=16;et.title='Etiqueta de '+ar;et.setAttribute('aria-label','Etiqueta de '+ar);
-    et.addEventListener('change',function(){if(e.etiqueta!==et.value){e.etiqueta=et.value;commit();}});
+    et.addEventListener('change',function(){cambiaEtq(a.elementos,e,et.value);});
     controlesFila(OX,yt+6,30,{aria:ar,x:function(){quitar(e);},c:function(){clonar(e);},e:function(){fichaElemento(a,e);},z:function(){ampliar(a,e);}});
     var y2=yt+(hh>=72?40:hh-28);
     var pw=7.6*(a.id.length+1)+4;
     textoSvg(svg,OX,y2+17,'t-pre',a.id+'-');
     var ie=ov('input',OX+pw,y2,112-pw+20,24,'id');ie.value=e.id;ie.placeholder='ID';ie.maxLength=12;ie.title='ID de '+ar+' (dentro del armario '+a.id+')';ie.setAttribute('aria-label','ID de '+ar+' dentro del armario '+a.id);
-    ie.addEventListener('change',function(){cambiaId(a.elementos,e,ie.value,ie,'elemento en este armario');});
+    ie.addEventListener('change',function(){cambiaId(a.elementos,e,ie.value,ie,'elemento en este armario',true);});
     var de=ov('input',OX+140,y2,OW-140,24,'des');de.value=e.descripcion;de.placeholder='Descripción';de.setAttribute('aria-label','Descripción de '+ar);
     de.addEventListener('change',function(){if(e.descripcion!==de.value){e.descripcion=de.value;commit();}});
     /* equipos en bandejas: etiqueta centrada y mini botones dentro */
@@ -833,9 +898,9 @@ function dibujarArmario(){
       var xm=(PX0+PX1)/2,yb=yt+2+8,hb=hh-4-16;
       e.mitades.forEach(function(it,m){
         if(!it)return;
-        var mx=m===0?PX0:xm+4,mw=it.ancho===2?PX1-PX0:(xm-4)-PX0,ar2=nombreEl(it)+' '+a.id+'-'+e.id+'-'+it.id;
+        var mx=m===0?PX0:xm+4,mw=it.ancho===2?PX1-PX0:(xm-4)-PX0,ar2=nombreEl(it)+' '+idBand(a,e,it);
         var eb=ov('input',mx+mw/2-50,yb+hb/2-11,100,22,'etqb');eb.value=it.etiqueta;eb.placeholder=it.id;eb.maxLength=16;eb.setAttribute('aria-label','Etiqueta de '+ar2);
-        eb.addEventListener('change',function(){if(it.etiqueta!==eb.value){it.etiqueta=eb.value;commit();}});
+        eb.addEventListener('change',function(){cambiaEtq(itemsBandeja(e),it,eb.value);});
         controlesFila(mx+mw-3*18-18,yb+2,22,{aria:ar2,x:function(){quitarItemBandeja(e,it);},c:function(){clonarItemBandeja(a,e,it);},e:function(){fichaItemBandeja(a,e,it);}},true);
       });
     }
@@ -971,7 +1036,7 @@ function catDown(b,e){
   if(vista!=='arm'||!armSel()){msg('Elige un armario (o crea uno) antes de arrastrar elementos del catálogo.');return;}
   var n=c.u;
   if(c.bandeja){n=0;}
-  else if(n===null){n=parseInt(prompt('Altura del elemento genérico, en U:','4'),10);if(!(n>=1))return;}
+  else if(n===null)n=1;
   drag={kind:c.bandeja?'bandeja':'nuevo',cat:c,n:n,off:0,x0:e.clientX,y0:e.clientY,moved:false,target:null};
   b.setPointerCapture(e.pointerId);
   $('fantasma').textContent=c.nombre+(n?' · '+n+' U':'');
@@ -1050,8 +1115,28 @@ function onUp(e){
   if(d.target===null){if(d.kind!=='mover'&&!dentroSvg(e))return;msg(d.kind==='bandeja'?'Suelta el equipo sobre una mitad libre de una bandeja.':'No cabe ahí: el sitio está ocupado o se sale del armario.');return;}
   if(d.kind==='mover'){var el=elPor(a,d.id);if(el.u!==d.target){el.u=d.target;selE=el.uid;commit();}}
   else if(d.kind==='bandeja'){var it=nuevoItemBandeja(d.target.b,d.cat);d.target.b.mitades[d.target.m]=it;selE=d.target.b.uid;commit();}
+  else if(d.cat.u===null){
+    var tr0=tramoLibre(a,d.target),u1=d.target;
+    pedirU(tr0[1]-tr0[0]+1,function(n){var ne0=nuevoElemento(a,d.cat,n,Math.min(u1,tr0[1]-n+1));a.elementos.push(ne0);selE=ne0.uid;commit();});
+  }
   else{var ne=nuevoElemento(a,d.cat,d.n,d.target);a.elementos.push(ne);selE=ne.uid;commit();}
 }
+/* ventana emergente para elegir el número de U de un elemento genérico */
+function pedirU(max,cb){
+  if(max<=1){cb(1);return;}
+  var i=$('nNum');
+  $('nNumLbl').textContent='Altura del elemento genérico, en U (de 1 a '+max+')';
+  i.max=max;i.value=1;$('nNumErr').textContent='';
+  $('frmNum').onsubmit=function(ev){
+    ev.preventDefault();var n=parseInt(i.value,10);
+    if(!(n>=1&&n<=max)){$('nNumErr').textContent='Escribe un número de U entre 1 y '+max+'.';return;}
+    $('dlgNum').close();cb(n);
+  };
+  $('dlgNum').showModal();i.focus();i.select();
+}
+$('nNumNo').addEventListener('click',function(){$('dlgNum').close();});
+$('dlgNumX').addEventListener('click',function(){$('dlgNum').close();});
+$('dlgNuevoX').addEventListener('click',function(){$('dlgNuevo').close();});
 function svgClick(e){
   var l=e.target.closest('.libre');
   if(l){abrirCatalogo(parseInt(l.dataset.u,10));return;}
@@ -1071,7 +1156,6 @@ var dlgU=0,dlgB=null,dlgPath=null,dlgModo='u';
 function abrirCatalogo(u){
   var a=armSel(),tr=tramoLibre(a,u);if(!tr)return;
   dlgModo='u';dlgU=u;var libres=tr[1]-tr[0]+1,h='<p>Has pulsado la <strong>U'+nU(a,u)+'</strong>. Hay '+libres+' U libre'+(libres===1?'':'s')+' seguida'+(libres===1?'':'s')+' ('+rango(a,tr[0],libres)+'). Si el elemento es más alto que 1 U, se coloca de forma que quepa.</p>';
-  h+='<div class="xu"><label for="xuN">Altura del elemento genérico de X U:</label><input type="number" id="xuN" min="1" max="'+libres+'" value="'+Math.min(4,libres)+'"></div>';
   GRUPOS.forEach(function(g){
     if(g[0]==='Para bandejas')return;
     h+='<h3 class="g">'+g[0]+'</h3>';
@@ -1107,11 +1191,10 @@ $('dlgCatCont').addEventListener('click',function(e){
   }
   var a=armSel(),c=cat[b.dataset.cat];
   if(dlgModo==='b'){var it2=nuevoItemBandeja(dlgB.b,c);dlgB.b.mitades[c.bandeja===2?0:dlgB.m]=it2;$('dlgCat').close();commit();return;}
-  var tr=tramoLibre(a,dlgU),libres=tr[1]-tr[0]+1,n=c.u;
-  if(n===null){n=parseInt($('xuN').value,10);if(!(n>=1)){msg('Indica una altura válida en U.');return;}if(n>libres){msg('No caben '+n+' U: solo hay '+libres+' libres seguidas.');return;}}
-  var u=Math.min(dlgU,tr[1]-n+1);
-  var ne=nuevoElemento(a,c,n,u);a.elementos.push(ne);selE=ne.uid;
-  $('dlgCat').close();commit();
+  var tr=tramoLibre(a,dlgU),libres=tr[1]-tr[0]+1,u0=dlgU;
+  var coloca=function(n){var u=Math.min(u0,tr[1]-n+1),ne=nuevoElemento(a,c,n,u);a.elementos.push(ne);selE=ne.uid;commit();};
+  $('dlgCat').close();
+  if(c.u===null)pedirU(libres,coloca);else coloca(c.u);
 });
 $('dlgCatX').addEventListener('click',function(){$('dlgCat').close();});
 
@@ -1120,7 +1203,7 @@ function ampliar(a,e){
   var s=[],yt=yU(a,e.u+e.n-1),hh=e.n*UH,m=6;
   s.push('<svg viewBox="'+(X0-m)+' '+(yt-m)+' '+(XW+2*m)+' '+(hh+2*m)+'" role="img" aria-label="'+esc(nombreEl(e))+' ampliado" style="width:100%;height:auto;display:block">');
   s.push('<g class="el">');dibujoElemento(s,a,e);s.push('</g></svg>');
-  $('dlgAyudaTit').textContent=nombreEl(e)+' · '+idCompleto(a,e)+(e.etiqueta?' · '+e.etiqueta:'');
+  $('dlgAyudaTit').textContent=nombreEl(e)+(e.id?' · '+idCompleto(a,e):'')+(e.etiqueta?' · '+e.etiqueta:'');
   $('dlgAyudaCont').innerHTML='<div style="overflow:auto">'+s.join('')+'</div><div class="ctrl"><button class="b chico" type="button" id="ayEditar">Editar la ficha</button><button class="b chico sec" type="button" id="ayCerrar">Cerrar</button></div>';
   $('ayCerrar').addEventListener('click',function(){$('dlgAyuda').close();});
   $('ayEditar').addEventListener('click',function(){$('dlgAyuda').close();fichaElemento(a,e);});
@@ -1128,6 +1211,12 @@ function ampliar(a,e){
 }
 /* ---------- fichas ---------- */
 function abrirFicha(tit,h){$('dlgFichaTit').textContent=tit;$('dlgFichaCont').innerHTML=h;$('dlgFicha').showModal();}
+function htmlEnlace(o){return '<label for="fEnl">Enlace al producto</label><input type="url" id="fEnl" value="'+esc(o.enlace||'')+'" placeholder="https://…"><p class="nota" id="fEnlAbrir"></p>';}
+function enlazaEnlace(o){
+  var enl=function(){$('fEnlAbrir').innerHTML=urlOk(o.enlace)?'<a href="'+esc(o.enlace)+'" target="_blank" rel="noopener">Abrir el enlace</a>':(o.enlace?'<span style="color:var(--red)">El enlace debe empezar por http:// o https://</span>':'');};
+  enl();
+  $('fEnl').addEventListener('change',function(){var v=this.value.trim();this.value=v;if(o.enlace!==v){o.enlace=v;commit();}enl();});
+}
 function campoTexto(id,campo,obj){var i=$(id);i.addEventListener('change',function(){if(obj[campo]!==i.value){obj[campo]=i.value;commit();}});}
 /* sección de puertos etiquetables (paneles, switches, fibra, router, huecos del panel vacío, ventanas de un módulo) */
 function seccionPuertos(el,c){
@@ -1183,35 +1272,42 @@ function fichaElemento(a,el){
   if(c.fam==='generico')h+='<label for="fNom">Nombre (sustituye a «Elemento genérico» en el dibujo)</label><input type="text" id="fNom" maxlength="40" value="'+esc(el.nombre||'')+'" placeholder="p. ej. Grabador de vídeo">';
   h+='<div class="dos"><div><label for="fId">ID (único en el armario)</label><div class="idc"><span class="pref">'+esc(a.id)+'-</span><input type="text" id="fId" class="mono id" maxlength="12" value="'+esc(el.id)+'"></div></div>';
   h+='<div><label for="fEtq">Etiqueta (se ve en el dibujo)</label><input type="text" id="fEtq" class="mono" maxlength="16" value="'+esc(el.etiqueta)+'" placeholder="'+esc(el.id)+'"></div></div>';
-  h+='<p class="nota">ID completo: <span class="idfull" id="fIdFull">'+esc(idCompleto(a,el))+'</span>. Si dejas la etiqueta vacía, se usa el ID.</p>';
+  h+='<p class="nota">ID completo: <span class="idfull" id="fIdFull">'+esc(idCompleto(a,el))+'</span>. Al escribir uno de los dos, el otro se rellena igual si está vacío.</p>';
   h+='<label for="fDes">Descripción</label><textarea id="fDes">'+esc(el.descripcion)+'</textarea>';
+  h+=htmlEnlace(el);
   h+=seccionColores(el);
   h+='<label for="fU">Primera U que ocupa (la de número más bajo)</label><input type="number" id="fU" min="1" max="'+(a.u-el.n+1)+'" value="'+primeraU(a,el)+'"><p class="nota">También puedes arrastrarlo en el dibujo.</p>';
   h+=seccionPuertos(el,c);
   h+='<div class="botones"><button class="b chico" type="button" id="fClonar">Clonar</button><button class="b chico peligro" type="button" id="fQuitar">Quitar</button><button class="b chico sec" type="button" id="fCerrar">Cerrar</button></div>';
-  abrirFicha('Ficha del elemento '+idCompleto(a,el),h);
+  abrirFicha('Ficha del elemento '+(el.id?idCompleto(a,el):nombreEl(el)),h);
   if($('fNom'))campoTexto('fNom','nombre',el);
-  campoTexto('fEtq','etiqueta',el);campoTexto('fDes','descripcion',el);enlazaColores(el);enlazaPuertos(el);
-  $('fId').addEventListener('change',function(){if(cambiaId(a.elementos,el,this.value,this,'elemento en este armario')){$('fIdFull').textContent=idCompleto(a,el);$('fEtq').placeholder=el.id;$('dlgFichaTit').textContent='Ficha del elemento '+idCompleto(a,el);}});
+  campoTexto('fDes','descripcion',el);enlazaEnlace(el);enlazaColores(el);enlazaPuertos(el);
+  var sincro=function(){$('fId').value=el.id;$('fEtq').value=el.etiqueta;$('fEtq').placeholder=el.id;$('fIdFull').textContent=idCompleto(a,el);$('dlgFichaTit').textContent='Ficha del elemento '+(el.id?idCompleto(a,el):nombreEl(el));};
+  $('fId').addEventListener('change',function(){cambiaId(a.elementos,el,this.value,this,'elemento en este armario',true);sincro();});
+  $('fEtq').addEventListener('change',function(){cambiaEtq(a.elementos,el,this.value);sincro();});
   $('fU').addEventListener('change',function(){var v=parseInt(this.value,10),p=fisicaDesdePrimera(a,v,el.n);if(cabe(a,p,el.n,el.uid)){el.u=p;commit();}else{msg('No cabe empezando en la U'+v+': está ocupada o se sale del armario.');this.value=primeraU(a,el);}});
   $('fClonar').addEventListener('click',function(){$('dlgFicha').close();clonar(el);});
   $('fQuitar').addEventListener('click',function(){$('dlgFicha').close();quitar(el);});
   $('fCerrar').addEventListener('click',function(){$('dlgFicha').close();});
 }
 function fichaItemBandeja(a,b,it){
-  var c=cat[it.tipo],h='',pref=a.id+'-'+b.id+'-';
+  var c=cat[it.tipo],h='',pref=a.id+'-'+(b.id||'…')+'-';
   h+='<div class="ocupa"><strong>'+esc(c.nombre)+'</strong><br>En la bandeja '+esc(etqEl(b))+' ('+esc(idCompleto(a,b))+'), '+(it.ancho===2?'ocupando toda la bandeja':(b.mitades[0]===it?'mitad izquierda':'mitad derecha'))+'</div>';
   if(c.fam==='bgenerico')h+='<label for="fNom">Nombre (sustituye a «Equipo genérico» en el dibujo)</label><input type="text" id="fNom" maxlength="40" value="'+esc(it.nombre||'')+'" placeholder="p. ej. Conversor de fibra">';
   h+='<div class="dos"><div><label for="fId">ID (único en la bandeja)</label><div class="idc"><span class="pref">'+esc(pref)+'</span><input type="text" id="fId" class="mono id" maxlength="12" value="'+esc(it.id)+'"></div></div>';
   h+='<div><label for="fEtq">Etiqueta (se ve en el dibujo)</label><input type="text" id="fEtq" class="mono" maxlength="16" value="'+esc(it.etiqueta)+'" placeholder="'+esc(it.id)+'"></div></div>';
+  h+='<p class="nota">Al escribir uno de los dos, el otro se rellena igual si está vacío.</p>';
   h+='<label for="fDes">Descripción</label><textarea id="fDes">'+esc(it.descripcion)+'</textarea>';
+  h+=htmlEnlace(it);
   h+=seccionColores(it);
   h+=seccionPuertos(it,c);
   h+='<div class="botones"><button class="b chico" type="button" id="fClonar">Clonar</button><button class="b chico peligro" type="button" id="fQuitar">Quitar</button><button class="b chico sec" type="button" id="fCerrar">Cerrar</button></div>';
-  abrirFicha('Ficha del equipo '+pref+it.id,h);
+  abrirFicha('Ficha del equipo '+(it.id?pref+it.id:nombreEl(it)),h);
   if($('fNom'))campoTexto('fNom','nombre',it);
-  campoTexto('fEtq','etiqueta',it);campoTexto('fDes','descripcion',it);enlazaColores(it);enlazaPuertos(it);
-  $('fId').addEventListener('change',function(){if(cambiaId(itemsBandeja(b),it,this.value,this,'equipo en esta bandeja')){$('fEtq').placeholder=it.id;$('dlgFichaTit').textContent='Ficha del equipo '+pref+it.id;}});
+  campoTexto('fDes','descripcion',it);enlazaEnlace(it);enlazaColores(it);enlazaPuertos(it);
+  var sincro=function(){$('fId').value=it.id;$('fEtq').value=it.etiqueta;$('fEtq').placeholder=it.id;$('dlgFichaTit').textContent='Ficha del equipo '+(it.id?pref+it.id:nombreEl(it));};
+  $('fId').addEventListener('change',function(){cambiaId(itemsBandeja(b),it,this.value,this,'equipo en esta bandeja',true);sincro();});
+  $('fEtq').addEventListener('change',function(){cambiaEtq(itemsBandeja(b),it,this.value);sincro();});
   $('fClonar').addEventListener('click',function(){$('dlgFicha').close();clonarItemBandeja(a,b,it);});
   $('fQuitar').addEventListener('click',function(){$('dlgFicha').close();quitarItemBandeja(b,it);});
   $('fCerrar').addEventListener('click',function(){$('dlgFicha').close();});
@@ -1228,16 +1324,15 @@ function fichaArmario(a){
   h+='<label>Dimensiones exteriores (mm)</label><div class="tres"><div><label for="fAncho">Ancho</label><input type="number" id="fAncho" min="1" value="'+a.ancho+'"></div><div><label for="fFondo">Fondo</label><input type="number" id="fFondo" min="1" value="'+a.fondo+'"></div><div><label for="fAlto">Alto</label><input type="number" id="fAlto" min="1" value="'+a.alto+'"></div></div>';
   h+='<p class="nota" id="fNotaMed"></p>';
   h+='<label for="fUbi">Ubicación</label><input type="text" id="fUbi" value="'+esc(a.ubicacion)+'" placeholder="p. ej. cuarto de comunicaciones, planta 1">';
-  h+='<label for="fEnl">Enlace al producto</label><input type="url" id="fEnl" value="'+esc(a.enlace)+'" placeholder="https://…"><p class="nota" id="fEnlAbrir"></p>';
+  h+=htmlEnlace(a);
   h+='<div class="botones"><button class="b chico" type="button" id="fClonar">Clonar armario</button><button class="b chico peligro" type="button" id="fQuitar">Borrar armario</button><button class="b chico sec" type="button" id="fCerrar">Cerrar</button></div>';
   abrirFicha('Ficha del armario '+a.id,h);
   var ponMed=function(){$('fAncho').value=a.ancho;$('fFondo').value=a.fondo;$('fAlto').value=a.alto;};
   var notaMed=function(){$('fNotaMed').innerHTML=a.medidasAuto?'Medidas orientativas según el tipo y las U. Cámbialas si tu armario es otro.':'Medidas escritas a mano. <button class="b chico sec" type="button" id="fSugerir">Volver a las orientativas</button>';
     if($('fSugerir'))$('fSugerir').addEventListener('click',function(){var s=sugerir(a.tipo,a.u);a.alto=s.alto;a.ancho=s.ancho;a.fondo=s.fondo;a.medidasAuto=true;ponMed();commit();notaMed();});};
-  var enl=function(){$('fEnlAbrir').innerHTML=a.enlace?'<a href="'+esc(a.enlace)+'" target="_blank" rel="noopener">Abrir el enlace</a>':'';};
-  notaMed();enl();
+  notaMed();
   campoTexto('fEtq','etiqueta',a);campoTexto('fDes','descripcion',a);campoTexto('fUbi','ubicacion',a);
-  $('fEnl').addEventListener('change',function(){a.enlace=this.value;enl();commit();});
+  enlazaEnlace(a);
   $('fId').addEventListener('change',function(){if(cambiaId(design.armarios,a,this.value,this,'armario')){$('fEtq').placeholder=a.id;$('dlgFichaTit').textContent='Ficha del armario '+a.id;}});
   ['fAncho','fFondo','fAlto'].forEach(function(id){var k=id.slice(1).toLowerCase();$(id).addEventListener('change',function(){var v=parseInt(this.value,10);if(v>0){a[k]=v;a.medidasAuto=false;commit();notaMed();}else this.value=a[k];});});
   $('fTipo').addEventListener('change',function(){a.tipo=this.value;if(a.medidasAuto){var s=sugerir(a.tipo,a.u);a.alto=s.alto;a.ancho=s.ancho;a.fondo=s.fondo;ponMed();}commit();});
@@ -1268,16 +1363,15 @@ function fichaRoseta(r){
   h+='<label>Dimensiones de la caja (mm)</label><div class="tres"><div><label for="fAncho">Ancho</label><input type="number" id="fAncho" min="1" value="'+r.ancho+'"></div><div><label for="fFondo">Fondo</label><input type="number" id="fFondo" min="1" value="'+r.fondo+'"></div><div><label for="fAlto">Alto</label><input type="number" id="fAlto" min="1" value="'+r.alto+'"></div></div>';
   h+='<p class="nota" id="fNotaMed"></p>';
   h+='<label for="fUbi">Ubicación</label><input type="text" id="fUbi" value="'+esc(r.ubicacion)+'" placeholder="p. ej. aula 12, pared norte, puesto 3">';
-  h+='<label for="fEnl">Enlace al producto</label><input type="url" id="fEnl" value="'+esc(r.enlace)+'" placeholder="https://…"><p class="nota" id="fEnlAbrir"></p>';
+  h+=htmlEnlace(r);
   h+='<div class="botones"><button class="b chico" type="button" id="fClonar">Clonar roseta</button><button class="b chico peligro" type="button" id="fQuitar">Borrar roseta</button><button class="b chico sec" type="button" id="fCerrar">Cerrar</button></div>';
   abrirFicha('Ficha de la roseta '+r.id,h);
   var ponMed=function(){$('fAncho').value=r.ancho;$('fFondo').value=r.fondo;$('fAlto').value=r.alto;};
   var notaMed=function(){$('fNotaMed').innerHTML=r.medidasAuto?'Medidas orientativas según el número de huecos. Cámbialas si tu roseta es otra.':'Medidas escritas a mano. <button class="b chico sec" type="button" id="fSugerir">Volver a las orientativas</button>';
     if($('fSugerir'))$('fSugerir').addEventListener('click',function(){var s=sugerirR(r.huecos);r.alto=s.alto;r.ancho=s.ancho;r.fondo=s.fondo;r.medidasAuto=true;ponMed();commit();notaMed();});};
-  var enl=function(){$('fEnlAbrir').innerHTML=r.enlace?'<a href="'+esc(r.enlace)+'" target="_blank" rel="noopener">Abrir el enlace</a>':'';};
-  notaMed();enl();
+  notaMed();
   campoTexto('fEtq','etiqueta',r);campoTexto('fDes','descripcion',r);campoTexto('fUbi','ubicacion',r);
-  $('fEnl').addEventListener('change',function(){r.enlace=this.value;enl();commit();});
+  enlazaEnlace(r);
   $('fId').addEventListener('change',function(){if(cambiaId(design.rosetas,r,this.value,this,'roseta')){$('fEtq').placeholder=r.id;$('dlgFichaTit').textContent='Ficha de la roseta '+r.id;}});
   ['fAncho','fFondo','fAlto'].forEach(function(id){var k=id.slice(1).toLowerCase();$(id).addEventListener('change',function(){var v=parseInt(this.value,10);if(v>0){r[k]=v;r.medidasAuto=false;commit();notaMed();}else this.value=r[k];});});
   $('fHu').addEventListener('change',function(){
@@ -1299,10 +1393,11 @@ function fichaItemRoseta(r,path){
   h+='<div class="dos"><div><label for="fId">ID (único en la roseta)</label><div class="idc"><span class="pref">'+esc(r.id)+'-</span><input type="text" id="fId" class="mono id" maxlength="12" value="'+esc(it.id)+'"></div></div>';
   h+='<div><label for="fEtq">Etiqueta (se ve en el dibujo)</label><input type="text" id="fEtq" class="mono" maxlength="16" value="'+esc(it.etiqueta)+'" placeholder="'+esc(it.id)+'"></div></div>';
   h+='<label for="fDes">Descripción</label><textarea id="fDes">'+esc(it.descripcion)+'</textarea>';
+  h+=htmlEnlace(it);
   h+=seccionPuertos(it,c);
   h+='<div class="botones"><button class="b chico" type="button" id="fClonar">Clonar</button><button class="b chico peligro" type="button" id="fQuitar">Quitar</button><button class="b chico sec" type="button" id="fCerrar">Cerrar</button></div>';
   abrirFicha('Ficha del módulo '+r.id+'-'+it.id,h);
-  campoTexto('fEtq','etiqueta',it);campoTexto('fDes','descripcion',it);enlazaPuertos(it);
+  campoTexto('fEtq','etiqueta',it);campoTexto('fDes','descripcion',it);enlazaEnlace(it);enlazaPuertos(it);
   $('fId').addEventListener('change',function(){if(cambiaId(itemsRoseta(r).map(function(z){return z.obj;}),it,this.value,this,'módulo en esta roseta')){$('fEtq').placeholder=it.id;$('dlgFichaTit').textContent='Ficha del módulo '+r.id+'-'+it.id;}});
   $('fClonar').addEventListener('click',function(){$('dlgFicha').close();clonarItemRoseta(r,path);});
   $('fQuitar').addEventListener('click',function(){$('dlgFicha').close();quitarItemRoseta(r,path);});
@@ -1337,23 +1432,24 @@ function revisar(){
   dup(d.armarios.map(function(a){return {etq:etqArm(a),nom:'armario '+a.id,a:a};}).concat(d.rosetas.map(function(r){return {etq:etqArm(r),nom:'roseta '+r.id,r:r};})),'armarios o rosetas',function(x){return x.a?{arm:x.a.uid}:{ros:x.r.uid};});
   d.armarios.forEach(function(a){
     if(!a.etiqueta)av.push({t:'falta',txt:'El armario '+a.id+' no tiene etiqueta propia (se muestra su ID).',ir:{arm:a.uid}});
-    dup(a.elementos.map(function(e){return {etq:etqEl(e),nom:nombreEl(e)+' '+idCompleto(a,e),e:e};}),'elementos del armario '+a.id,function(x){return {arm:a.uid,el:x.e.uid};});
+    dup(a.elementos.map(function(e){return {etq:etqEl(e),nom:refEl(a,e),e:e};}),'elementos del armario '+a.id,function(x){return {arm:a.uid,el:x.e.uid};});
     a.elementos.forEach(function(e){
       var c=cat[e.tipo];
-      if(!e.etiqueta)av.push({t:'falta',txt:nombreEl(e)+' '+idCompleto(a,e)+' no tiene etiqueta propia (se muestra su ID).',ir:{arm:a.uid,el:e.uid}});
+      if(!e.id)av.push({t:'falta',txt:nombreEl(e)+' en '+rangoTxt(a,e.u,e.n)+' no tiene ID'+(e.etiqueta?'':' ni etiqueta')+'.',ir:{arm:a.uid,el:e.uid}});
+      else if(!e.etiqueta)av.push({t:'falta',txt:refEl(a,e)+' no tiene etiqueta propia (se muestra su ID).',ir:{arm:a.uid,el:e.uid}});
       var ps=(e.puertos||[]).concat(e.sfp||[],e.huecos||[]).filter(function(p){return p.etiqueta;}),vis={};
       ps.forEach(function(p){vis[p.etiqueta]=(vis[p.etiqueta]||0)+1;});
-      Object.keys(vis).forEach(function(k){if(vis[k]>1)av.push({t:'rep',txt:'En '+nombreEl(e)+' '+idCompleto(a,e)+', la etiqueta de puerto «'+k+'» está repetida '+vis[k]+' veces.',ir:{arm:a.uid,el:e.uid}});});
-      if(c.fam==='regleta'&&e.u>2)av.push({t:'regla',txt:'La regleta '+idCompleto(a,e)+' está en '+rangoTxt(a,e.u,e.n)+'. Suele ir en la parte baja del armario.',ir:{arm:a.uid,el:e.uid}});
+      Object.keys(vis).forEach(function(k){if(vis[k]>1)av.push({t:'rep',txt:'En '+refEl(a,e)+', la etiqueta de puerto «'+k+'» está repetida '+vis[k]+' veces.',ir:{arm:a.uid,el:e.uid}});});
+      if(c.fam==='regleta'&&e.u>2)av.push({t:'regla',txt:'La regleta '+(e.id?idCompleto(a,e)+' ':'')+'está en '+rangoTxt(a,e.u,e.n)+'. Suele ir en la parte baja del armario.',ir:{arm:a.uid,el:e.uid}});
       if(c.fam==='panel'||c.fam==='panelvacio'||c.fam==='fibra'){
         var pasa=a.elementos.some(function(x){return cat[x.tipo].fam==='pasa'&&(x.u+x.n===e.u||x.u===e.u+e.n);});
-        if(!pasa)av.push({t:'regla',txt:nombreEl(e)+' '+idCompleto(a,e)+' no tiene un pasacables justo encima ni justo debajo.',ir:{arm:a.uid,el:e.uid}});
+        if(!pasa)av.push({t:'regla',txt:refEl(a,e)+' no tiene un pasacables justo encima ni justo debajo.',ir:{arm:a.uid,el:e.uid}});
       }
       if(c.fam==='sai'||c.fam==='servidor'){
         var debajo=a.elementos.filter(function(x){var f=cat[x.tipo].fam;return (f==='panel'||f==='panelvacio'||f==='fibra'||f==='switch')&&x.u<e.u;});
-        if(debajo.length)av.push({t:'regla',txt:nombreEl(e)+' '+idCompleto(a,e)+' (equipo pesado) está por encima de '+debajo.map(function(x){return nombreEl(x)+' '+x.id;}).join(', ')+'. Los equipos pesados van abajo.',ir:{arm:a.uid,el:e.uid}});
+        if(debajo.length)av.push({t:'regla',txt:refEl(a,e)+' (equipo pesado) está por encima de '+debajo.map(function(x){return nombreEl(x)+' '+x.id;}).join(', ')+'. Los equipos pesados van abajo.',ir:{arm:a.uid,el:e.uid}});
       }
-      (e.mitades||[]).forEach(function(it){if(it&&!it.etiqueta)av.push({t:'falta',txt:nombreEl(it)+' '+a.id+'-'+e.id+'-'+it.id+' no tiene etiqueta propia.',ir:{arm:a.uid,el:e.uid}});});
+      (e.mitades||[]).forEach(function(it){if(!it)return;var nom=nombreEl(it)+' (en la bandeja '+(e.id?idCompleto(a,e):rango(a,e.u,e.n))+')';if(!it.id)av.push({t:'falta',txt:nom+' no tiene ID'+(it.etiqueta?'':' ni etiqueta')+'.',ir:{arm:a.uid,el:e.uid}});else if(!it.etiqueta)av.push({t:'falta',txt:nom+' '+idBand(a,e,it)+' no tiene etiqueta propia.',ir:{arm:a.uid,el:e.uid}});});
     });
     if(!a.elementos.some(function(e){return cat[e.tipo].fam==='regleta';}))av.push({t:'regla',txt:'El armario '+a.id+' no tiene regleta eléctrica.',ir:{arm:a.uid}});
     var oc=0;a.elementos.forEach(function(e){oc+=e.n;});var libre=a.u-oc;
@@ -1454,8 +1550,8 @@ function imprimir(){
     if(a.elementos.length){
       h+='<table><tr><th>U</th><th>Elemento</th><th class="mono">ID</th><th class="mono">Etiqueta</th><th>Descripción y etiquetas de puertos</th></tr>';
       a.elementos.slice().sort(function(x,y){return primeraU(a,x)-primeraU(a,y);}).forEach(function(e){
-        h+='<tr><td>'+rango(a,e.u,e.n).replace(/U/g,'')+'</td><td>'+esc(nombreEl(e))+'</td><td class="mono">'+esc(idCompleto(a,e))+'</td><td class="mono">'+esc(etqEl(e))+'</td><td>'+esc(e.descripcion)+(etiquetasTxt(e)?'<div class="puertos-txt">'+etiquetasTxt(e)+'</div>':'')+'</td></tr>';
-        (e.mitades||[]).forEach(function(it){if(it)h+='<tr><td></td><td>&nbsp;&nbsp;↳ '+esc(nombreEl(it))+'</td><td class="mono">'+esc(a.id+'-'+e.id+'-'+it.id)+'</td><td class="mono">'+esc(etqEl(it))+'</td><td>'+esc(it.descripcion)+(etiquetasTxt(it)?'<div class="puertos-txt">'+etiquetasTxt(it)+'</div>':'')+'</td></tr>';});
+        h+='<tr><td>'+rango(a,e.u,e.n).replace(/U/g,'')+'</td><td>'+esc(nombreEl(e))+'</td><td class="mono">'+esc(e.id?idCompleto(a,e):'')+'</td><td class="mono">'+esc(etqEl(e))+'</td><td>'+esc(e.descripcion)+(etiquetasTxt(e)?'<div class="puertos-txt">'+etiquetasTxt(e)+'</div>':'')+'</td></tr>';
+        (e.mitades||[]).forEach(function(it){if(it)h+='<tr><td></td><td>&nbsp;&nbsp;↳ '+esc(nombreEl(it))+'</td><td class="mono">'+esc(it.id?idBand(a,e,it):'')+'</td><td class="mono">'+esc(etqEl(it))+'</td><td>'+esc(it.descripcion)+(etiquetasTxt(it)?'<div class="puertos-txt">'+etiquetasTxt(it)+'</div>':'')+'</td></tr>';});
       });
       h+='</table>';
     }
@@ -1488,21 +1584,31 @@ function verImagen(){
   var res=esR?svgRoseta(obj,'solo'):svgArmario(obj,'solo'),base=(esR?'roseta-':'armario-')+(obj.id||'').replace(/[^\w-]+/g,'_');
   var h='<p>Guarda el dibujo '+(esR?'de la roseta':'del armario')+' <strong>'+esc(etqArm(obj))+'</strong> como imagen, con las etiquetas en el dibujo.</p>';
   h+='<div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;max-height:45vh;overflow-y:auto">'+res.svg+'</div>';
-  h+='<div class="ctrl"><button class="b chico" type="button" id="imgSvg">Guardar SVG</button><button class="b chico" type="button" id="imgPng">Guardar PNG</button><button class="b chico sec" type="button" id="ayCerrar">Cerrar</button></div>';
+  h+='<div class="ctrl"><button class="b chico" type="button" id="imgSvg">Guardar SVG</button><button class="b chico" type="button" id="imgPng">Guardar PNG</button><button class="b chico" type="button" id="imgCopiar">Copiar imagen</button><button class="b chico sec" type="button" id="ayCerrar">Cerrar</button><span id="imgEstado" role="status" style="font-size:.9rem"></span></div>';
   $('dlgAyuda').classList.add('ancho');$('dlgAyudaTit').textContent='Imagen del dibujo';$('dlgAyudaCont').innerHTML=h;
   $('ayCerrar').addEventListener('click',function(){$('dlgAyuda').close();});
   var svgTxt='<?xml version="1.0" encoding="UTF-8"?>\n'+res.svg;
+  var estado=function(t,ok){var e=$('imgEstado');e.textContent=t;e.style.color=ok?'var(--green,#1E7F4F)':'var(--red,#B3261E)';};
+  /* devuelve una promesa con el PNG del dibujo */
+  var hacerPng=function(){
+    return new Promise(function(ok,ko){
+      var img=new Image(),k=2,u=URL.createObjectURL(new Blob([svgTxt],{type:'image/svg+xml;charset=utf-8'}));
+      img.onload=function(){
+        var c=document.createElement('canvas');c.width=res.W*k;c.height=res.H*k;
+        var ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
+        URL.revokeObjectURL(u);
+        c.toBlob(function(b){if(b)ok(b);else ko(new Error('png'));},'image/png');
+      };
+      img.onerror=function(){URL.revokeObjectURL(u);ko(new Error('png'));};
+      img.src=u;
+    });
+  };
   $('imgSvg').addEventListener('click',function(){descargaBlob(new Blob([svgTxt],{type:'image/svg+xml;charset=utf-8'}),base+'.svg');});
-  $('imgPng').addEventListener('click',function(){
-    var img=new Image(),k=2,u=URL.createObjectURL(new Blob([svgTxt],{type:'image/svg+xml;charset=utf-8'}));
-    img.onload=function(){
-      var c=document.createElement('canvas');c.width=res.W*k;c.height=res.H*k;
-      var ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
-      URL.revokeObjectURL(u);
-      c.toBlob(function(b){if(b)descargaBlob(b,base+'.png');else msg('No se ha podido generar el PNG; guarda el SVG.');},'image/png');
-    };
-    img.onerror=function(){URL.revokeObjectURL(u);msg('No se ha podido generar el PNG; guarda el SVG.');};
-    img.src=u;
+  $('imgPng').addEventListener('click',function(){hacerPng().then(function(b){descargaBlob(b,base+'.png');},function(){estado('No se ha podido generar el PNG; guarda el SVG.',false);});});
+  $('imgCopiar').addEventListener('click',function(){
+    if(!(navigator.clipboard&&window.ClipboardItem&&navigator.clipboard.write)){estado('Este navegador no permite copiar imágenes: guarda el PNG.',false);return;}
+    /* se pasa la promesa al ClipboardItem para conservar el permiso del clic */
+    navigator.clipboard.write([new ClipboardItem({'image/png':hacerPng()})]).then(function(){estado('Imagen copiada al portapapeles.',true);},function(){estado('No se ha podido copiar la imagen: guarda el PNG.',false);});
   });
   $('dlgAyuda').showModal();
 }
@@ -1524,10 +1630,27 @@ function render(){
 /* ---------- guardar y cargar ---------- */
 function textoJson(){return JSON.stringify(design,null,2);}
 function nombreFichero(){var n=(design.nombre||'Nuevo diseño').trim().replace(/[^\wáéíóúñü-]+/gi,'_');return n+'.json';}
+var fichero=null; /* fichero abierto o guardado: se recuerda para guardar en el mismo sitio (solo con File System Access: Chrome, Edge) */
+var FSA=!!(window.showSaveFilePicker&&window.showOpenFilePicker);
+var TIPOS=[{description:'Diseño (JSON)',accept:{'application/json':['.json']}}];
+function descargaDirecta(){
+  descargaBlob(new Blob([textoJson()],{type:'application/json'}),nombreFichero());
+  msg('Diseño guardado como '+nombreFichero()+' (en tu carpeta de descargas).','ok');
+}
+function escribeFichero(h){return h.createWritable().then(function(w){return w.write(textoJson()).then(function(){return w.close();});});}
+function guardarComo(){
+  if(!FSA){descargaDirecta();return;}
+  window.showSaveFilePicker({suggestedName:nombreFichero(),types:TIPOS}).then(function(h){
+    return escribeFichero(h).then(function(){fichero=h;msg('Diseño guardado en «'+h.name+'». Los próximos guardados irán al mismo fichero.','ok');});
+  }).catch(function(err){if(err&&err.name==='AbortError')return;msg('No se ha podido guardar el fichero.');});
+}
 function descargar(){
-  var b=new Blob([textoJson()],{type:'application/json'}),u=URL.createObjectURL(b),e=document.createElement('a');
-  e.href=u;e.download=nombreFichero();document.body.appendChild(e);e.click();e.remove();setTimeout(function(){URL.revokeObjectURL(u);},1000);
-  msg('Diseño guardado como '+nombreFichero()+'.','ok');
+  if(!FSA){descargaDirecta();return;}
+  if(!fichero){guardarComo();return;}
+  escribeFichero(fichero).then(function(){msg('Diseño guardado en «'+fichero.name+'».','ok');},function(err){
+    if(err&&err.name==='AbortError')return;
+    fichero=null;msg('No se puede escribir en el fichero de antes (¿se ha movido o ha caducado el permiso?). Elige dónde guardarlo.');guardarComo();
+  });
 }
 function copiaEtiquetas(dest,src){if(dest&&Array.isArray(src))src.forEach(function(q,i){if(dest[i]&&q){if(q.uid)dest[i].uid=q.uid;dest[i].etiqueta=String(q.etiqueta||'').toUpperCase();if(q.modulo&&/^(vacio|rj45|ciego)$/.test(q.modulo))dest[i].modulo=q.modulo;}});}
 function colorOk(v){return /^#[0-9a-f]{6}$/i.test(v||'');}
@@ -1539,7 +1662,7 @@ function cargarTexto(t){
   d.nombre=String(o.nombre||'Nuevo diseño');d.autor=String(o.autor||'');d.fecha=/^\d{4}-\d{2}-\d{2}$/.test(o.fecha||'')?o.fecha:'';d.cliente=String(o.cliente||'');d.descripcion=String(o.descripcion||'');d.numeracion=o.numeracion==='arriba'?'arriba':'abajo';
   d.catalogoPropio=Array.isArray(o.catalogoPropio)?o.catalogoPropio:[];
   d.conexiones=Array.isArray(o.conexiones)?o.conexiones:[];
-  design=d;
+  design=d;fichero=null;
   (o.armarios||[]).forEach(function(x){
     var a={uid:x.uid||uid('a'),id:normId(x.id),etiqueta:String(x.etiqueta||''),descripcion:String(x.descripcion||''),tipo:x.tipo==='suelo'?'suelo':'mural',numeracion:x.numeracion==='arriba'?'arriba':'abajo',u:Math.max(1,Math.min(47,parseInt(x.u,10)||12)),alto:parseInt(x.alto,10)||0,ancho:parseInt(x.ancho,10)||0,fondo:parseInt(x.fondo,10)||0,medidasAuto:!!x.medidasAuto,ubicacion:String(x.ubicacion||''),enlace:String(x.enlace||''),elementos:[]};
     if(!a.id||idsA[a.id]){a.id=idArmLibre();malos++;}
@@ -1551,7 +1674,7 @@ function cargarTexto(t){
       if(!cabe(a,u,n)){malos++;return;}
       var e=nuevoElemento(a,c,n,u);e.uid=y.uid||e.uid;
       var idl=normId(y.id);if(idl&&!a.elementos.some(function(z){return z.id===idl;}))e.id=idl;else if(idl)malos++;
-      e.etiqueta=String(y.etiqueta||'');e.descripcion=String(y.descripcion||'');if(c.fam==='generico')e.nombre=String(y.nombre||'');
+      e.etiqueta=String(y.etiqueta||'');e.descripcion=String(y.descripcion||'');e.enlace=String(y.enlace||'');if(c.fam==='generico')e.nombre=String(y.nombre||'');
       if(colorOk(y.color))e.color=y.color;if(colorOk(y.colorTexto))e.colorTexto=y.colorTexto;
       copiaEtiquetas(e.puertos,y.puertos);copiaEtiquetas(e.sfp,y.sfp);copiaEtiquetas(e.huecos,y.huecos);
       if(e.mitades&&Array.isArray(y.mitades)){
@@ -1561,7 +1684,7 @@ function cargarTexto(t){
           if(cz.bandeja===1&&e.mitades[0]&&e.mitades[0].ancho===2){malos++;return;}
           var it=nuevoItemBandeja(e,cz);it.uid=z.uid||it.uid;
           var idz=normId(z.id);if(idz&&!itemsBandeja(e).some(function(w){return w.id===idz;}))it.id=idz;
-          it.etiqueta=String(z.etiqueta||'');it.descripcion=String(z.descripcion||'');if(cz.fam==='bgenerico')it.nombre=String(z.nombre||'');
+          it.etiqueta=String(z.etiqueta||'');it.descripcion=String(z.descripcion||'');it.enlace=String(z.enlace||'');if(cz.fam==='bgenerico')it.nombre=String(z.nombre||'');
           if(colorOk(z.color))it.color=z.color;if(colorOk(z.colorTexto))it.colorTexto=z.colorTexto;
           copiaEtiquetas(it.puertos,z.puertos);
           e.mitades[m]=it;
@@ -1574,7 +1697,7 @@ function cargarTexto(t){
     if(!z||!RCAT[z.tipo]||RCAT[z.tipo].nivel!==nivelOk){if(z)malos++;return null;}
     var it=nuevoItemRoseta(r,z.tipo);it.uid=z.uid||it.uid;
     var idz=normId(z.id);if(idz&&!itemsRoseta(r).some(function(w){return w.obj.id===idz;}))it.id=idz;
-    it.etiqueta=String(z.etiqueta||'');it.descripcion=String(z.descripcion||'');if(z.verEtiqueta===false)it.verEtiqueta=false;
+    it.etiqueta=String(z.etiqueta||'');it.descripcion=String(z.descripcion||'');it.enlace=String(z.enlace||'');if(z.verEtiqueta===false)it.verEtiqueta=false;
     copiaEtiquetas(it.ventanas,z.ventanas);
     return it;
   };
@@ -1606,7 +1729,18 @@ function cargarTexto(t){
   return true;
 }
 $('bDescargar').addEventListener('click',descargar);
-$('bCargar').addEventListener('click',function(){$('fichero').value='';$('fichero').click();});
+$('bGuardarComo').hidden=!FSA;
+$('bGuardarComo').addEventListener('click',guardarComo);
+$('bCargar').addEventListener('click',function(){
+  if(FSA){
+    window.showOpenFilePicker({types:TIPOS,multiple:false}).then(function(hs){
+      var h=hs[0];
+      return h.getFile().then(function(f){return f.text();}).then(function(t){if(cargarTexto(t))fichero=h;});
+    }).catch(function(err){if(err&&err.name==='AbortError')return;msg('No se ha podido abrir el fichero.');});
+    return;
+  }
+  $('fichero').value='';$('fichero').click();
+});
 $('fichero').addEventListener('change',function(){
   var f=this.files[0];if(!f)return;var r=new FileReader();
   r.onload=function(){cargarTexto(r.result);};r.readAsText(f);
@@ -1621,7 +1755,7 @@ $('bCopiar').addEventListener('click',function(){
 $('bCargarTxt').addEventListener('click',function(){var t=$('txtJson').value.trim();if(!t){$('msgCod').textContent='Pega antes el texto del diseño.';return;}if(cargarTexto(t))$('dlgCod').close();else $('msgCod').textContent=$('msg').textContent;});
 $('bNuevoDis').addEventListener('click',function(){
   var hay=design.armarios.length>0||design.rosetas.length>0;
-  var ir=function(){design=nuevoDiseno();hist=[];fut=[];snap=serial();selA=null;selR=null;selE=null;vista='arm';render();msg('Diseño nuevo en blanco. Crea un armario o una roseta con los botones + de la izquierda.','ok');};
+  var ir=function(){design=nuevoDiseno();fichero=null;hist=[];fut=[];snap=serial();selA=null;selR=null;selE=null;vista='arm';render();msg('Diseño nuevo en blanco. Crea un armario o una roseta con los botones + de la izquierda.','ok');};
   if(hay)confirmar('Vas a empezar un diseño nuevo. Si no has guardado el actual, lo perderás.',ir);else ir();
 });
 $('dNombre').addEventListener('change',function(){var v=this.value.trim()||'Nuevo diseño';if(v!==design.nombre){design.nombre=v;commit();}else this.value=v;});
